@@ -1,0 +1,43 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.DemoDatabaseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Hoard - Demo database" Width="620" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+    <ui:TitleBar Grid.Row="0" Title="Create a demo database" ShowMaximize="False" ShowMinimize="False"/>
+    <StackPanel Grid.Row="1" Margin="20,4,20,20">
+      <TextBlock Style="{StaticResource Note}" TextWrapping="Wrap"
+                 Text="Creates a separate database on the same MySQL server with Hoard's full schema and a sample household — four people, eight institutions, fifteen accounts of every type, two years of categorized transactions, balance history and a home — so you can explore or demonstrate Hoard without your own data. Your live database is not touched. A MySQL administrator login is needed once, to create the database and grant your Hoard user access; it is not stored."/>
+      <TextBlock Margin="0,10,0,0"><Run Text="Server: " FontWeight="SemiBold"/><Run Text="{Binding ServerText, Mode=OneWay}"/></TextBlock>
+      <Grid Margin="0,8,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="160"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition/><RowDefinition/><RowDefinition/>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="Demo database name" VerticalAlignment="Center"/>
+        <ui:TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DemoName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4"/>
+        <TextBlock Grid.Row="1" Text="MySQL admin user" VerticalAlignment="Center"/>
+        <ui:TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AdminUser, UpdateSourceTrigger=PropertyChanged}" Margin="0,4"/>
+        <TextBlock Grid.Row="2" Text="MySQL admin password" VerticalAlignment="Center"/>
+        <PasswordBox Grid.Row="2" Grid.Column="1" x:Name="AdminPasswordBox" PasswordChanged="OnAdminPasswordChanged" Margin="0,4"/>
+      </Grid>
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+      <ui:ProgressRing IsIndeterminate="True" Width="22" Height="22" HorizontalAlignment="Left" Margin="0,8,0,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <ui:Button Content="Switch Hoard to it and restart" Appearance="Primary" Command="{Binding SwitchAndRestartCommand}" MinWidth="120" Margin="0,0,8,0"
+                   Visibility="{Binding IsCreated, Converter={StaticResource BoolToVis}}"/>
+        <ui:Button Content="Create" Appearance="Primary" Command="{Binding CreateCommand}" MinWidth="90" Margin="0,0,8,0"
+                   Visibility="{Binding IsCreated, Converter={StaticResource InverseBoolToVis}}"/>
+        <ui:Button Content="Close" IsCancel="True" MinWidth="90"/>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</ui:FluentWindow>

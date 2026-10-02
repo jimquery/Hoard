@@ -1,0 +1,51 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.AddInstitutionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Hoard - Add institution (SimpleFIN)" Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+  <DockPanel>
+    <ui:TitleBar DockPanel.Dock="Top" Title="Add institution" ShowMaximize="False" ShowMinimize="False"/>
+  <StackPanel Margin="16">
+    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">
+      <Run Text="1. Sign in to "/><Hyperlink NavigateUri="https://bridge.simplefin.org/" RequestNavigate="OnNavigate">SimpleFIN Bridge</Hyperlink><Run Text=" and connect your bank(s) there."/>
+      <LineBreak/>
+      <Run Text="2. On the Bridge site choose &quot;New App&quot; (or &quot;Get Setup Token&quot;) and copy the token it shows."/>
+      <LineBreak/>
+      <Run Text="3. Paste the token below. It is used exactly once to obtain an access key, which Hoard stores encrypted."/>
+    </TextBlock>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition/><RowDefinition/>
+      </Grid.RowDefinitions>
+      <Label Grid.Row="0" Content="Name"/>
+      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+      <Label Grid.Row="1" Content="Setup token" VerticalAlignment="Top" Margin="0,6,0,0"/>
+      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SetupToken, UpdateSourceTrigger=PropertyChanged}"
+               AcceptsReturn="False" TextWrapping="Wrap" Height="90" FontFamily="Consolas" VerticalScrollBarVisibility="Auto"/>
+    </Grid>
+
+    <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Margin="4,12"/>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="Add" Command="{Binding AddCommand}" IsDefault="True">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+              <DataTrigger Binding="{Binding Succeeded}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+      </Button>
+      <Button Content="Close" Click="OnCloseClick" IsCancel="True"/>
+    </StackPanel>
+  </StackPanel>
+  </DockPanel>
+</ui:FluentWindow>

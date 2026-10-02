@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Hoard.Desktop</RootNamespace>
+    <AssemblyName>Hoard</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\hoard.ico</ApplicationIcon>
+    <!-- Allows `dotnet build` of this project on non-Windows CI/dev boxes. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.5" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Hoard.Core\Hoard.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Embedded so windows can reference them by pack URI; the .ico is also the executable's icon (above). -->
+    <Resource Include="Assets\hoard.ico" />
+    <Resource Include="Assets\hoard-256.png" />
+  </ItemGroup>
+</Project>

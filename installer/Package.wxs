@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hoard installer.
+
+  Builds a single per-machine x64 MSI that lays down the desktop app, the sync service, a private
+  copy of MySQL Community Server and the HoardSetup worker, then hands over to HoardSetup.exe to
+  initialize the database and register the two Windows services.
+
+  Why the work is done by an EXE rather than by the MSI's own ServiceInstall/ServiceControl tables:
+  the MySQL data directory has to be created by mysqld itself before its service can start, the
+  database and user can only be created once that service is running, and hoard.json can only be
+  written once the password exists. That ordering does not fit the standard action sequence, and a
+  purpose-built EXE is far easier to run by hand when an install needs repairing.
+
+  The custom actions take a verb and nothing else. A deferred custom action cannot read session
+  properties, so a Type 18 command line containing [INSTALLFOLDER] would format to an empty string;
+  HoardSetup.exe therefore derives every path from its own location.
+
+  Build: see build-installer.ps1 (wix build -arch x64 -d Version=... -d PublishRoot=...).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Package Name="Hoard"
+           Manufacturer="Jim"
+           Version="$(var.Version)"
+           UpgradeCode="AE7F6E37-216D-4711-9FA9-94C598EC969B"
+           Scope="perMachine"
+           Compressed="yes"
+           InstallerVersion="500">
+
+    <SummaryInformation Description="Hoard — personal financial aggregator, with its own MySQL server" />
+
+    <!--
+      Scheduled afterInstallValidate so the previous version is fully removed - services stopped and
+      deleted, files released - before the new payload is written. With the default schedule the old
+      package's uninstall action would run after the new files were installed and would tear down the
+      services this install had just created. Uninstall never deletes the database, so the data
+      survives the round trip.
+    -->
+    <MajorUpgrade Schedule="afterInstallValidate"
+                  DowngradeErrorMessage="A newer version of Hoard is already installed. Remove it first if you really want to go back." />
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Launch Condition="Installed OR VersionNT64 &gt;= 603"
+            Message="Hoard requires 64-bit Windows 8.1 or later." />
+
+    <Icon Id="HoardIcon.ico" SourceFile="$(sys.SOURCEFILEDIR)..\src\Hoard.Desktop\Assets\hoard.ico" />
+    <Property Id="ARPPRODUCTICON" Value="HoardIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://bridge.simplefin.org/" />
+    <Property Id="ARPNOREPAIR" Value="0" />
+
+    <Feature Id="Main" Title="Hoard" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="DesktopFiles" />
+      <ComponentGroupRef Id="ServiceFiles" />
+      <ComponentGroupRef Id="SetupFiles" />
+      <ComponentGroupRef Id="MySqlFiles" />
+      <ComponentRef Id="HoardSetupExeComponent" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(sys.SOURCEFILEDIR)License.rtf" />
+
+    <UI>
+      <ProgressText Action="HoardInstall" Message="Setting up the Hoard database and services" />
+      <ProgressText Action="HoardUninstall" Message="Removing the Hoard services" />
+      <ProgressText Action="HoardRollback" Message="Undoing the Hoard database setup" />
+    </UI>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Hoard">
+        <Directory Id="DesktopDir" Name="Desktop" />
+        <Directory Id="ServiceDir" Name="Service" />
+        <Directory Id="SetupDir" Name="Setup" />
+        <Directory Id="MySqlDir" Name="mysql" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="HoardMenuFolder" Name="Hoard" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <!-- Harvested wholesale; these trees are large (MySQL alone is a few hundred files). -->
+    <ComponentGroup Id="DesktopFiles" Directory="DesktopDir">
+      <Files Include="$(var.PublishRoot)\Desktop\**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="ServiceFiles" Directory="ServiceDir">
+      <Files Include="$(var.PublishRoot)\Service\**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="MySqlFiles" Directory="MySqlDir">
+      <Files Include="$(var.PublishRoot)\mysql\**" />
+    </ComponentGroup>
+
+    <!--
+      HoardSetup.exe itself is declared by hand below so the custom actions have a File id to point at,
+      and is excluded from the harvest here so it is not laid down twice. In WiX v5 the exclusion is a
+      child element of Files, not an attribute.
+    -->
+    <ComponentGroup Id="SetupFiles" Directory="SetupDir">
+      <Files Include="$(var.PublishRoot)\Setup\**">
+        <Exclude Files="$(var.PublishRoot)\Setup\HoardSetup.exe" />
+      </Files>
+    </ComponentGroup>
+
+    <Component Id="HoardSetupExeComponent" Directory="SetupDir" Guid="1AE6E358-A1D8-45AC-ABB4-C868190942D5">
+      <File Id="HoardSetupExe" Source="$(var.PublishRoot)\Setup\HoardSetup.exe" KeyPath="yes" />
+    </Component>
+
+    <Component Id="StartMenuShortcut" Directory="HoardMenuFolder" Guid="F450863D-3E0F-43F5-A529-638A148B9C6C">
+      <Shortcut Id="HoardStartMenuShortcut"
+                Name="Hoard"
+                Description="Personal financial aggregator"
+                Target="[DesktopDir]Hoard.exe"
+                WorkingDirectory="DesktopDir"
+                Icon="HoardIcon.ico" />
+      <RemoveFolder Id="RemoveHoardMenuFolder" Directory="HoardMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\Hoard" Name="InstallFolder" Type="string"
+                     Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <!--
+      Type 18 (EXE from an installed file) deferred actions. Impersonate="no" runs them as LocalSystem,
+      which is what registering services and writing DPAPI LocalMachine secrets requires.
+    -->
+    <CustomAction Id="HoardInstall"   FileRef="HoardSetupExe" ExeCommand="install"
+                  Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="HoardRollback"  FileRef="HoardSetupExe" ExeCommand="uninstall"
+                  Execute="rollback" Impersonate="no" Return="ignore" />
+    <!-- Return="ignore": a broken service must never make the product impossible to remove. -->
+    <CustomAction Id="HoardUninstall" FileRef="HoardSetupExe" ExeCommand="uninstall"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="HoardRollback"  After="InstallFiles"   Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="HoardInstall"   After="HoardRollback"  Condition="NOT Installed OR REINSTALL" />
+      <Custom Action="HoardUninstall" Before="RemoveFiles"   Condition="REMOVE=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

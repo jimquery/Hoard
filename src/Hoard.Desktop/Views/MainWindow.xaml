@@ -1,0 +1,157 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:views="clr-namespace:Hoard.Desktop.Views"
+        Title="Hoard" Width="1360" Height="860" MinWidth="1000" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Assets/hoard.ico"
+        ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica" WindowCornerPreference="Round"
+        Loaded="OnLoaded">
+  <ui:FluentWindow.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding SyncAllCommand}"/>
+    <KeyBinding Key="R" Modifiers="Ctrl" Command="{Binding RefreshCommand}"/>
+  </ui:FluentWindow.InputBindings>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Title bar -->
+    <ui:TitleBar Grid.Row="0" Title="Hoard">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="pack://application:,,,/Assets/hoard-256.png" Width="22" Height="22"/>
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
+
+    <!-- Rail + page -->
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <ListBox x:Name="Rail" Grid.Column="0" Width="224" Margin="12,6,4,8" Background="Transparent" BorderThickness="0"
+               SelectionChanged="OnRailChanged" SelectedIndex="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <ListBox.Resources>
+          <!-- Raised button look: soft gradient face, hairline highlight along the top, drop shadow underneath.
+               The selected page is "pressed in": accent gradient, no shadow, nudged down a pixel. -->
+          <Style x:Key="RailIcon" TargetType="ui:SymbolIcon">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+          </Style>
+        </ListBox.Resources>
+        <ListBox.ItemContainerStyle>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <Grid SnapsToDevicePixels="True">
+                    <!-- Raised face: gradient, hairline top highlight, drop shadow. -->
+                    <Border x:Name="Face" CornerRadius="10" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorSecondaryBrush}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                          <GradientStop Color="{DynamicResource ControlFillColorDefault}" Offset="0"/>
+                          <GradientStop Color="{DynamicResource ControlFillColorTertiary}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border.Effect>
+                        <DropShadowEffect BlurRadius="8" ShadowDepth="2.5" Direction="270" Opacity="0.28" Color="Black"/>
+                      </Border.Effect>
+                      <Border Height="1" VerticalAlignment="Top" Margin="1,0" CornerRadius="10,10,0,0" Background="#80FFFFFF"/>
+                    </Border>
+                    <!-- Hover: a light wash over the face. -->
+                    <Border x:Name="Hover" CornerRadius="10" Background="#22FFFFFF" Visibility="Collapsed"/>
+                    <!-- Selected: pressed in — accent gradient, no shadow, nudged down a pixel. -->
+                    <Border x:Name="Pressed" CornerRadius="10" BorderThickness="1" Margin="0,1,0,-1" Visibility="Collapsed"
+                            BorderBrush="{DynamicResource SystemAccentColorPrimaryBrush}">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                          <GradientStop Color="{DynamicResource SystemAccentColorSecondary}" Offset="0"/>
+                          <GradientStop Color="{DynamicResource SystemAccentColorPrimary}" Offset="1"/>
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border Height="1" VerticalAlignment="Top" Margin="1,0" CornerRadius="10,10,0,0" Background="#40FFFFFF"/>
+                    </Border>
+                    <ContentPresenter x:Name="Content" Margin="16,12" VerticalAlignment="Center"/>
+                  </Grid>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Hover" Property="Visibility" Value="Visible"/>
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                      <Setter TargetName="Face" Property="Visibility" Value="Hidden"/>
+                      <Setter TargetName="Hover" Property="Visibility" Value="Collapsed"/>
+                      <Setter TargetName="Pressed" Property="Visibility" Value="Visible"/>
+                      <Setter TargetName="Content" Property="Margin" Value="16,13,16,11"/>
+                      <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ListBox.ItemContainerStyle>
+        <ListBoxItem Tag="Dashboard">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Home24" Style="{StaticResource RailIcon}"/><TextBlock Text="Dashboard" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Institutions">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="BuildingBank24" Style="{StaticResource RailIcon}"/><TextBlock Text="Institutions" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Accounts">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Wallet24" Style="{StaticResource RailIcon}"/><TextBlock Text="Accounts" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Transactions">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Receipt24" Style="{StaticResource RailIcon}"/><TextBlock Text="Transactions" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Reports">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="DataTrending24" Style="{StaticResource RailIcon}"/><TextBlock Text="Reports" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Settings">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Settings24" Style="{StaticResource RailIcon}"/><TextBlock Text="Settings" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+      </ListBox>
+
+      <Border Grid.Column="1" Margin="4,4,8,8" CornerRadius="8"
+              Background="{DynamicResource LayerFillColorDefaultBrush}"
+              BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+        <Grid>
+          <views:DashboardView x:Name="DashboardPage" DataContext="{Binding Dashboard}"/>
+          <views:InstitutionsView x:Name="InstitutionsPage" Visibility="Collapsed"/>
+          <views:AccountsView x:Name="AccountsPage" Visibility="Collapsed"/>
+          <views:TransactionsView x:Name="TransactionsPage" Visibility="Collapsed"/>
+          <views:ReportsView x:Name="ReportsPage" DataContext="{Binding Reports}" Visibility="Collapsed"/>
+          <views:SettingsView x:Name="SettingsPage" DataContext="{Binding Settings}" Visibility="Collapsed"/>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Status bar -->
+    <Grid Grid.Row="2" Margin="16,0,16,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+      </Grid.ColumnDefinitions>
+      <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Style="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      <StackPanel Grid.Column="1" Orientation="Horizontal">
+        <TextBlock Text="Assets " Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding TotalAssets, StringFormat=C0}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0"/>
+        <TextBlock Text="Liabilities " Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding TotalLiabilities, StringFormat=C0}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0"/>
+        <TextBlock Text="Net worth " Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding NetWorth, StringFormat=C0}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="16,0,0,0"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+      </StackPanel>
+    </Grid>
+  </Grid>
+</ui:FluentWindow>

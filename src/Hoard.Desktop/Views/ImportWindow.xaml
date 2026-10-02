@@ -1,0 +1,106 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.ImportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Hoard - Import transactions" Width="1060" Height="720" MinWidth="860" MinHeight="540"
+        WindowStartupLocation="CenterOwner" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <ui:TitleBar Grid.Row="0" Title="Import transactions (CSV)" ShowMaximize="True" ShowMinimize="False"/>
+
+    <StackPanel Grid.Row="1" Margin="20,4,20,8">
+      <TextBlock Style="{StaticResource Note}"
+                 Text="Bring in history exported from another aggregator (Empower / Personal Capital: Date, Account, Description, Category, Tags, Amount). Match each exported account to a Hoard account, check the category mapping, preview, then import. Transactions that already exist in Hoard are recognised and left alone, and re-importing the same file never creates duplicates."/>
+      <ui:Card Padding="10,8">
+        <DockPanel>
+          <ui:Button DockPanel.Dock="Right" Content="Browse..." Icon="{ui:SymbolIcon FolderOpen24}" Click="OnBrowseClick" Margin="8,0,0,0"/>
+          <ui:Button DockPanel.Dock="Right" Content="Load" Appearance="Primary" Click="OnLoadClick" Margin="8,0,0,0"/>
+          <ui:TextBox Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="C:\...\Empower.csv"/>
+        </DockPanel>
+      </ui:Card>
+      <TextBlock Text="{Binding FileSummary}" Style="{StaticResource Muted}" Margin="2,6,0,0" TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <TabControl Grid.Row="2" Margin="20,0,20,8" IsEnabled="{Binding IsLoaded}">
+      <TabItem Header="Accounts">
+        <DockPanel Margin="0,8,0,0">
+          <TextBlock DockPanel.Dock="Top" Style="{StaticResource Note}" Margin="0,0,0,6"
+                     Text="Pick the Hoard account each exported account belongs to. Matches were suggested from the account numbers and names. Accounts with no match default to &quot;create a new account&quot;: a history-only account under an &quot;Imported&quot; institution (never synced, excluded from net worth) so its spending and income still show in reports; choose &quot;skip&quot; to leave one out."/>
+          <DataGrid ItemsSource="{Binding AccountMaps}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                    HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionUnit="Cell">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Exported account" Binding="{Binding Source, Mode=OneWay}" IsReadOnly="True" Width="*"/>
+              <DataGridTextColumn Header="Rows" Binding="{Binding Rows, StringFormat=N0, Mode=OneWay}" IsReadOnly="True" Width="70" ElementStyle="{StaticResource RightCell}"/>
+              <DataGridTextColumn Header="Dates" Binding="{Binding Range, Mode=OneWay}" IsReadOnly="True" Width="150"/>
+              <DataGridTemplateColumn Header="Hoard account" Width="300">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <ComboBox ItemsSource="{Binding DataContext.AccountChoices, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding Target, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="Transparent"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Result" Binding="{Binding Result, Mode=OneWay}" IsReadOnly="True" Width="220"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </TabItem>
+      <TabItem Header="Categories">
+        <DockPanel Margin="0,8,0,0">
+          <TextBlock DockPanel.Dock="Top" Style="{StaticResource Note}" Margin="0,0,0,6"
+                     Text="Where each exported category lands in Hoard, as &quot;Group: Sub-category&quot;. Your own categorization rules run first and win wherever they match, so these mappings cover the rows no rule claims. Pick from the list or type a new name and it will be created. Leave blank to import those rows uncategorized. The optional money-out column sends negative amounts somewhere else (e.g. interest earned vs. interest charged)."/>
+          <DataGrid ItemsSource="{Binding CategoryMaps}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                    HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionUnit="Cell">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Exported category" Binding="{Binding Source, Mode=OneWay}" IsReadOnly="True" Width="*"/>
+              <DataGridTextColumn Header="Rows" Binding="{Binding Rows, StringFormat=N0, Mode=OneWay}" IsReadOnly="True" Width="70" ElementStyle="{StaticResource RightCell}"/>
+              <DataGridTemplateColumn Header="Hoard category" Width="300">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <ComboBox IsEditable="True" ItemsSource="{Binding DataContext.CategoryPaths, RelativeSource={RelativeSource AncestorType=Window}}"
+                              Text="{Binding TargetPath, UpdateSourceTrigger=LostFocus}" BorderThickness="0" Background="Transparent"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Money-out rows (optional)" Width="260">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <ComboBox IsEditable="True" ItemsSource="{Binding DataContext.CategoryPaths, RelativeSource={RelativeSource AncestorType=Window}}"
+                              Text="{Binding NegativePath, UpdateSourceTrigger=LostFocus}" BorderThickness="0" Background="Transparent"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </TabItem>
+      <TabItem Header="Problems">
+        <ListBox ItemsSource="{Binding Problems}" Margin="0,8,0,0" BorderThickness="0"/>
+      </TabItem>
+    </TabControl>
+
+    <StackPanel Grid.Row="3" Margin="20,0,20,8">
+      <TextBlock Text="{Binding PreviewSummary}" TextWrapping="Wrap" Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}" Margin="0,0,0,6"/>
+      <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="6" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+    </StackPanel>
+
+    <DockPanel Grid.Row="4" Margin="20,0,20,16">
+      <ui:Button DockPanel.Dock="Right" Content="Close" IsCancel="True" MinWidth="90"/>
+      <ui:Button DockPanel.Dock="Right" Content="Import" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding ImportCommand}" MinWidth="110" Margin="0,0,8,0"
+                 IsEnabled="{Binding IsLoaded}"/>
+      <ui:Button DockPanel.Dock="Right" Content="Preview" Command="{Binding PreviewCommand}" MinWidth="100" Margin="0,0,8,0" IsEnabled="{Binding IsLoaded}"/>
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+        <TextBlock Text="Treat as the same transaction within" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <ui:NumberBox Value="{Binding DedupeWindowDays}" Minimum="0" Maximum="14" SmallChange="1" Width="110" SpinButtonPlacementMode="Inline"/>
+        <TextBlock Text="days" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+      </StackPanel>
+      <TextBlock Text="{Binding Status}" Style="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+    </DockPanel>
+  </Grid>
+</ui:FluentWindow>

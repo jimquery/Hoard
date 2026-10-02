@@ -1,0 +1,90 @@
+<UserControl x:Class="Hoard.Desktop.Views.TransactionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:c="clr-namespace:Hoard.Desktop.Controls"
+             xmlns:views="clr-namespace:Hoard.Desktop.Views">
+  <Grid Style="{StaticResource PagePanel}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+        <ui:Button Content="Import CSV" Icon="{ui:SymbolIcon ArrowImport24}" Click="OnImportClick" Margin="0,0,8,0" ToolTip="Import transaction history exported from Empower (CSV)"/>
+        <ui:Button Content="Categories &amp; rules" Icon="{ui:SymbolIcon Tag24}" Click="OnCategoriesRulesClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Run rules" Icon="{ui:SymbolIcon Play24}" Command="{Binding RunRulesCommand}" ToolTip="Re-apply every rule to transactions you have not categorized by hand, including imported rows: where a rule matches, it replaces the category the imported file supplied."/>
+      </StackPanel>
+      <StackPanel>
+        <TextBlock Text="Transactions" Style="{StaticResource PageTitle}"/>
+        <TextBlock Text="Change a category with the drop-down (type part of a name to filter it); ✎ means you set it, ⚙ a rule, ⇲ an import. Hoard offers to make a rule from each edit." Style="{StaticResource Note}"/>
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Filter bar -->
+    <ui:Card Grid.Row="1" Padding="10,8" Margin="0,0,0,8">
+      <WrapPanel VerticalAlignment="Center">
+        <ComboBox ItemsSource="{Binding FilterTypeOptions}" SelectedItem="{Binding FilterType}" Width="170" Margin="0,0,8,0" ToolTip="Account type"/>
+        <ComboBox ItemsSource="{Binding FilterAccountOptions}" SelectedItem="{Binding FilterAccount}" Width="260" Margin="0,0,12,0" ToolTip="Account (narrowed to the chosen type)"/>
+        <ui:TextBox Width="240" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Search description, payee, memo, notes"
+                    Icon="{ui:SymbolIcon Search24}" KeyDown="OnFilterKeyDown" Margin="0,0,12,0"/>
+        <TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+        <DatePicker SelectedDate="{Binding FilterFrom}" Width="140" Margin="0,0,12,0"/>
+        <TextBlock Text="To" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+        <DatePicker SelectedDate="{Binding FilterTo}" Width="140" Margin="0,0,12,0"/>
+        <c:FilterPicker ItemsSource="{Binding FilterCategoryOptions}" SelectedItem="{Binding FilterCategory}" DisplayMemberPath="Path" Width="230" Margin="0,0,12,0"
+                        ToolTip="Type part of a category name to filter the list"/>
+        <ui:Button Content="Apply" Appearance="Primary" Command="{Binding ApplyFilterCommand}" Margin="0,0,6,0"/>
+        <ui:Button Content="Clear" Command="{Binding ClearFilterCommand}" Margin="0,0,16,0"/>
+        <ui:Button Icon="{ui:SymbolIcon ChevronLeft24}" Command="{Binding PrevPageCommand}" IsEnabled="{Binding CanPrev}" Padding="6,4"/>
+        <TextBlock Text="{Binding PageText}" VerticalAlignment="Center" MinWidth="130" TextAlignment="Center" Style="{StaticResource Muted}"/>
+        <ui:Button Icon="{ui:SymbolIcon ChevronRight24}" Command="{Binding NextPageCommand}" IsEnabled="{Binding CanNext}" Padding="6,4"/>
+      </WrapPanel>
+    </ui:Card>
+
+    <ui:Card Grid.Row="2" Padding="8">
+      <DataGrid ItemsSource="{Binding Transactions}" SelectedItem="{Binding SelectedTransaction}" AutoGenerateColumns="False"
+                CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                SelectionMode="Single" BorderThickness="0">
+        <DataGrid.RowStyle>
+          <Style TargetType="DataGridRow" BasedOn="{StaticResource DefaultDataGridRowStyle}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsPending}" Value="True"><Setter Property="FontStyle" Value="Italic"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </DataGrid.RowStyle>
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Posted" Binding="{Binding PostedDate, StringFormat=yyyy-MM-dd}" IsReadOnly="True" Width="95"/>
+          <DataGridTextColumn Header="Account" Binding="{Binding AccountName}" IsReadOnly="True" Width="140"/>
+          <DataGridTextColumn Header="Description" Binding="{Binding Description}" IsReadOnly="True" Width="*"/>
+          <DataGridTextColumn Header="Payee" Binding="{Binding Payee}" IsReadOnly="True" Width="140"/>
+          <DataGridTemplateColumn Header="Amount" Width="100" IsReadOnly="True">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Amount, StringFormat=N2}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Foreground="{Binding Amount, Converter={StaticResource AmountToBrush}}"/>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Category" Width="240">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding SourceGlyph}" ToolTip="{Binding SourceTooltip}" Style="{StaticResource Muted}" Margin="4,0" VerticalAlignment="Center"/>
+                  <c:FilterPicker ItemsSource="{Binding DataContext.TransactionCategories, RelativeSource={RelativeSource AncestorType=views:TransactionsView}}"
+                                  DisplayMemberPath="Path" SelectedValuePath="Id"
+                                  SelectedValue="{Binding CategoryIdOrZero, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="Type part of a category name to filter the list"/>
+                </DockPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Notes" Binding="{Binding Notes, UpdateSourceTrigger=LostFocus}" Width="160"/>
+          <DataGridCheckBoxColumn Header="Pending" Binding="{Binding IsPending, Mode=OneWay}" IsReadOnly="True" Width="60"/>
+        </DataGrid.Columns>
+      </DataGrid>
+    </ui:Card>
+  </Grid>
+</UserControl>

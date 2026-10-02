@@ -1,0 +1,64 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Icon="pack://application:,,,/Assets/hoard.ico"
+        Title="Hoard - First-time setup" Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+  <DockPanel>
+    <ui:TitleBar DockPanel.Dock="Top" Title="First-time setup" ShowMaximize="False" ShowMinimize="False"/>
+  <Grid Margin="16">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+      <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.ColumnSpan="2" Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,12">
+      Hoard stores everything in a local MySQL database. Provide a MySQL administrator login once so Hoard
+      can create its database and a restricted user. The administrator password is not saved.
+    </TextBlock>
+
+    <Label Grid.Row="1" Content="MySQL host"/>
+    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}"/>
+    <Label Grid.Row="2" Content="Port"/>
+    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
+    <Label Grid.Row="3" Content="Admin user"/>
+    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding AdminUser, UpdateSourceTrigger=PropertyChanged}"/>
+    <Label Grid.Row="4" Content="Admin password"/>
+    <PasswordBox Grid.Row="4" Grid.Column="1" x:Name="AdminPasswordBox"/>
+
+    <Separator Grid.Row="5" Grid.ColumnSpan="2" Margin="0,8"/>
+
+    <Label Grid.Row="6" Content="Hoard database"/>
+    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding DatabaseName, UpdateSourceTrigger=PropertyChanged}"/>
+    <Label Grid.Row="7" Content="Hoard user / password"/>
+    <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
+      <TextBox Text="{Binding AppUser, UpdateSourceTrigger=PropertyChanged}" Width="120"/>
+      <TextBox Text="{Binding AppPassword, UpdateSourceTrigger=PropertyChanged}" Width="260" FontFamily="Consolas"/>
+    </StackPanel>
+
+    <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="{Binding Status}" TextWrapping="Wrap" Margin="4,12"/>
+
+    <StackPanel Grid.Row="9" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Content="Create database" Click="OnProvisionClick" IsDefault="True">
+        <Button.Style>
+          <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="IsEnabled" Value="True"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsBusy}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+              <DataTrigger Binding="{Binding IsComplete}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+      </Button>
+      <Button Content="Continue" Click="OnContinueClick" IsEnabled="{Binding IsComplete}"/>
+      <Button Content="Cancel" IsCancel="True"/>
+    </StackPanel>
+  </Grid>
+  </DockPanel>
+</ui:FluentWindow>

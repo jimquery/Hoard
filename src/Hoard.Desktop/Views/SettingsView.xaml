@@ -1,0 +1,134 @@
+<UserControl x:Class="Hoard.Desktop.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="20,12,20,12" MaxWidth="820" HorizontalAlignment="Left">
+      <TextBlock Text="Settings" Style="{StaticResource PageTitle}"/>
+      <TextBlock Text="{Binding Status}" Style="{StaticResource Note}"/>
+
+      <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}"/>
+      <ui:Card Padding="16,12">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition/><RowDefinition/><RowDefinition/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0" Text="Theme" VerticalAlignment="Center"/>
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+            <RadioButton Content="Follow Windows" GroupName="Theme" Margin="0,0,16,0" IsChecked="{Binding SelectedTheme, Converter={StaticResource StringEquals}, ConverterParameter=System}"/>
+            <RadioButton Content="Light" GroupName="Theme" Margin="0,0,16,0" IsChecked="{Binding SelectedTheme, Converter={StaticResource StringEquals}, ConverterParameter=Light}"/>
+            <RadioButton Content="Dark" GroupName="Theme" IsChecked="{Binding SelectedTheme, Converter={StaticResource StringEquals}, ConverterParameter=Dark}"/>
+          </StackPanel>
+
+          <TextBlock Grid.Row="1" Text="Accent color" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AccentPresets}" SelectedItem="{Binding SelectedAccent}" Width="220" HorizontalAlignment="Left" Margin="0,4">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="12" Height="12" CornerRadius="6" Margin="0,0,8,0" VerticalAlignment="Center"
+                          Background="{Binding Hex, Converter={StaticResource HexToBrush}}"/>
+                  <TextBlock Text="{Binding Name}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+
+          <TextBlock Grid.Row="2" Text="Window backdrop" VerticalAlignment="Center"/>
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+            <ComboBox ItemsSource="{Binding BackdropOptions}" SelectedItem="{Binding SelectedBackdrop}" Width="220"/>
+            <TextBlock Text="Mica and Acrylic need Windows 11; otherwise a solid background is used." Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+          </StackPanel>
+        </Grid>
+      </ui:Card>
+
+      <TextBlock Text="Sync" Style="{StaticResource SectionTitle}"/>
+      <ui:Card Padding="16,12">
+        <StackPanel>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/><RowDefinition/><RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Background refresh" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <TextBlock Text="every" VerticalAlignment="Center" Margin="0,0,6,0"/>
+              <ui:TextBox Text="{Binding IntervalMinutes, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+              <TextBlock Text="minutes (minimum 15; used by the Hoard Windows service)" VerticalAlignment="Center" Margin="6,0,0,0" Style="{StaticResource Muted}"/>
+            </StackPanel>
+            <TextBlock Grid.Row="1" Text="Initial history" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <ui:TextBox Text="{Binding InitialHistoryDays, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+              <TextBlock Text="days requested on an institution's first sync" VerticalAlignment="Center" Margin="6,0,0,0" Style="{StaticResource Muted}"/>
+            </StackPanel>
+            <TextBlock Grid.Row="2" Text="Pending transactions" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="2" Grid.Column="1" Content="Download pending transactions (they are replaced when they post)" IsChecked="{Binding IncludePending}" Margin="0,4"/>
+          </Grid>
+          <ui:Button Content="Save sync settings" Appearance="Primary" Command="{Binding SaveSyncCommand}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+        </StackPanel>
+      </ui:Card>
+
+      <TextBlock Text="Database" Style="{StaticResource SectionTitle}"/>
+      <ui:Card Padding="16,12">
+        <StackPanel>
+          <TextBlock><Run Text="Currently using: " FontWeight="SemiBold"/><Run Text="{Binding DatabaseText, Mode=OneWay}"/></TextBlock>
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Server" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <ui:TextBox Text="{Binding DbHost, UpdateSourceTrigger=PropertyChanged}" Width="260"/>
+              <TextBlock Text="port" VerticalAlignment="Center" Margin="10,0,6,0" Style="{StaticResource Muted}"/>
+              <ui:TextBox Text="{Binding DbPort, UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+            </StackPanel>
+            <TextBlock Grid.Row="1" Text="Database" VerticalAlignment="Center"/>
+            <ui:TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DbName, UpdateSourceTrigger=PropertyChanged}" Width="260" HorizontalAlignment="Left" Margin="0,4"/>
+            <TextBlock Grid.Row="2" Text="User" VerticalAlignment="Center"/>
+            <ui:TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DbUser, UpdateSourceTrigger=PropertyChanged}" Width="260" HorizontalAlignment="Left" Margin="0,4"/>
+            <TextBlock Grid.Row="3" Text="Password" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <PasswordBox x:Name="DbPasswordBox" Width="260" PasswordChanged="OnDbPasswordChanged"/>
+              <TextBlock Text="leave blank to keep the stored password" VerticalAlignment="Center" Margin="10,0,0,0" Style="{StaticResource Muted}"/>
+            </StackPanel>
+            <TextBlock Grid.Row="4" Text="Encryption" VerticalAlignment="Center"/>
+            <CheckBox Grid.Row="4" Grid.Column="1" Content="Require SSL/TLS for the connection" IsChecked="{Binding DbUseSsl}" Margin="0,4"/>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <ui:Button Content="Test connection" Command="{Binding TestDatabaseCommand}" Margin="0,0,8,0"/>
+            <ui:Button Content="Save database settings" Appearance="Primary" Command="{Binding SaveDatabaseCommand}" Margin="0,0,8,0"/>
+            <ui:Button Content="Restart Hoard now" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RestartAppCommand}" Margin="0,0,16,0"
+                       Visibility="{Binding RestartNeeded, Converter={StaticResource BoolToVis}}"/>
+            <ui:Button Content="Create demo database..." Icon="{ui:SymbolIcon Beaker24}" Click="OnCreateDemoClick"
+                       ToolTip="Creates a separate HoardDemo database with the same schema and sample data"/>
+            <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="12,0,0,0" Visibility="{Binding DbBusy, Converter={StaticResource BoolToVis}}"/>
+          </StackPanel>
+          <TextBlock Text="{Binding DbStatus}" Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+          <TextBlock Margin="0,8,0,0"><Run Text="Settings file: " FontWeight="SemiBold"/><Run Text="{Binding SettingsPath, Mode=OneWay}"/></TextBlock>
+          <TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap"
+                     Text="The password is stored protected by Windows DPAPI for your account; bank credentials are sealed with AES-256-GCM under a key that is itself DPAPI-protected. Delete the settings file to run first-time setup again."/>
+        </StackPanel>
+      </ui:Card>
+
+      <ui:Card Padding="16,12" Margin="0,12,0,0">
+        <StackPanel>
+          <TextBlock Text="About" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
+          <TextBlock x:Name="VersionText" Text="Hoard" FontWeight="SemiBold"/>
+          <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0"
+                     Text="A personal financial aggregator. Your data lives in your own MySQL database; bank access goes through SimpleFIN Bridge. Shortcuts: F5 syncs every institution, Ctrl+R refreshes."/>
+        </StackPanel>
+      </ui:Card>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

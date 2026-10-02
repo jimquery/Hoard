@@ -1,0 +1,143 @@
+<UserControl x:Class="Hoard.Desktop.Views.AccountsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+  <Grid Style="{StaticResource PagePanel}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+        <ui:Button Content="Sync all" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding SyncAllCommand}" Margin="0,0,8,0"/>
+        <ui:Button Content="Account types" Icon="{ui:SymbolIcon Tag24}" Click="OnAccountTypesClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Household" Icon="{ui:SymbolIcon People24}" Click="OnHouseholdClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Real estate" Icon="{ui:SymbolIcon Building24}" Click="OnRealEstateClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Merge duplicates" Icon="{ui:SymbolIcon Merge24}" Click="OnMergeDuplicatesClick"/>
+      </StackPanel>
+      <StackPanel>
+        <TextBlock Text="Accounts" Style="{StaticResource PageTitle}"/>
+        <TextBlock Text="Institutions you have connected and the accounts they report. Right-click an account for more options." Style="{StaticResource Note}"/>
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Probable duplicate accounts flagged by a sync (a bank reconnected at SimpleFIN re-issues account ids). -->
+    <ui:InfoBar Grid.Row="1" Title="Possible duplicate accounts" Message="{Binding DuplicateNotice}" Severity="Warning"
+                IsOpen="{Binding HasPossibleDuplicates, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8">
+      <ui:Button Content="Review and merge..." Icon="{ui:SymbolIcon Merge24}" Appearance="Primary" Click="OnMergeDuplicatesClick" Margin="0,4,0,4"/>
+    </ui:InfoBar>
+
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="300" MinWidth="220"/>
+        <ColumnDefinition Width="12"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Institutions -->
+      <ui:Card Grid.Column="0" Padding="8" VerticalAlignment="Stretch">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="Institutions" Style="{StaticResource SectionTitle}" Margin="8,4,8,6"/>
+          <ListBox ItemsSource="{Binding Institutions}" SelectedItem="{Binding SelectedInstitution}" BorderThickness="0" Background="Transparent">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Sync this institution" Command="{Binding SyncSelectedCommand}"/>
+                <MenuItem Header="Rename..." Click="OnRenameInstitutionClick"/>
+                <Separator/>
+                <MenuItem Header="Remove..." Click="OnRemoveInstitutionClick"/>
+              </ContextMenu>
+            </ListBox.ContextMenu>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="4,2">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding StatusText}" FontSize="11" Style="{StaticResource Muted}"/>
+                  <TextBlock Text="{Binding LastError}" FontSize="11" Foreground="{DynamicResource SystemFillColorCriticalBrush}" TextWrapping="Wrap" ToolTip="{Binding LastError}"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </ui:Card>
+
+      <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" Background="Transparent"/>
+
+      <!-- Accounts -->
+      <ui:Card Grid.Column="2" Padding="8" VerticalAlignment="Stretch">
+        <DockPanel>
+          <DockPanel DockPanel.Dock="Top" Margin="8,4,8,6">
+            <TextBlock Text="Accounts" Style="{StaticResource SectionTitle}" Margin="0"/>
+            <TextBlock Text="  Set each account's type — it drives the dashboard and net-worth reports. Tick Exclude to keep an account out of net worth." Style="{StaticResource Muted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          </DockPanel>
+          <DataGrid ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}"
+                    AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                    SelectionMode="Single" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0"
+                    MouseDoubleClick="OnAccountDoubleClick">
+            <DataGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Rename account..." Click="OnRenameAccountClick"/>
+                <MenuItem Header="Use bank's name" Click="OnResetAccountNameClick"/>
+                <Separator/>
+                <MenuItem Header="Merge duplicate accounts..." Click="OnMergeDuplicatesClick"/>
+              </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.RowStyle>
+              <Style TargetType="DataGridRow" BasedOn="{StaticResource DefaultDataGridRowStyle}">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding ExcludeFromNetWorth}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding IsPossibleDuplicate}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}"/>
+                    <Setter Property="ToolTip" Value="Looks like a second copy of an account you already had. Use Merge duplicate accounts to fold it in or dismiss it."/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Institution" Binding="{Binding InstitutionName}" IsReadOnly="True" Width="150"/>
+              <DataGridTemplateColumn Header="Account" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding BankName, StringFormat=' (bank: {0})'}" Style="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center"
+                                 Visibility="{Binding IsRenamed, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Bank" Binding="{Binding OrgName}" IsReadOnly="True" Width="140"/>
+              <DataGridTemplateColumn Header="Type" Width="160">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              DisplayMemberPath="Name" SelectedValuePath="Id"
+                              SelectedValue="{Binding CategoryIdOrZero, UpdateSourceTrigger=PropertyChanged}"
+                              BorderThickness="0" Background="Transparent" Padding="4,2"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="Owner" Width="140">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <ComboBox ItemsSource="{Binding DataContext.Owners, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              DisplayMemberPath="Name" SelectedValuePath="Id"
+                              SelectedValue="{Binding OwnerIdOrZero, UpdateSourceTrigger=PropertyChanged}"
+                              BorderThickness="0" Background="Transparent" Padding="4,2"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn Header="Balance" Binding="{Binding Balance, StringFormat=N2}" IsReadOnly="True" Width="110" ElementStyle="{StaticResource RightCell}"/>
+              <DataGridTextColumn Header="Available" Binding="{Binding AvailableBalance, StringFormat=N2}" IsReadOnly="True" Width="100" ElementStyle="{StaticResource RightCell}"/>
+              <DataGridTextColumn Header="As of" Binding="{Binding BalanceDateLocal, StringFormat=g}" IsReadOnly="True" Width="130"/>
+              <DataGridCheckBoxColumn Header="Exclude" Binding="{Binding ExcludeFromNetWorth, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </ui:Card>
+    </Grid>
+  </Grid>
+</UserControl>

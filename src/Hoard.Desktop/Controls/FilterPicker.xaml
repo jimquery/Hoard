@@ -1,0 +1,33 @@
+<UserControl x:Class="Hoard.Desktop.Controls.FilterPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root" MinWidth="80">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="Auto"/>
+    </Grid.ColumnDefinitions>
+    <TextBox x:Name="Box" Grid.Column="0" Grid.ColumnSpan="2" VerticalContentAlignment="Center" Padding="6,3,24,3"
+             GotKeyboardFocus="OnBoxGotFocus" PreviewMouseLeftButtonDown="OnBoxMouseDown" TextChanged="OnBoxTextChanged" PreviewKeyDown="OnBoxKeyDown"/>
+    <ToggleButton x:Name="Arrow" Grid.Column="1" Width="22" Margin="0,0,2,0" Background="Transparent" BorderThickness="0" Focusable="False"
+                  Click="OnArrowClick" Content="&#x25BE;" FontSize="10" Padding="0"/>
+    <Popup x:Name="Pop" PlacementTarget="{Binding ElementName=Box}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
+           Width="{Binding ActualWidth, ElementName=Box}" MaxHeight="320" Closed="OnPopupClosed">
+      <Border Background="{DynamicResource ApplicationBackgroundBrush}" BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+              BorderThickness="1" CornerRadius="6" Padding="2" Margin="0,2,0,0">
+        <ListBox x:Name="List" BorderThickness="0" Background="Transparent" MaxHeight="300"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="OnListMouseUp">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Setter Property="Padding" Value="8,4"/>
+              <Setter Property="Focusable" Value="False"/>
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsParent}" Value="True"><Setter Property="FontWeight" Value="Bold"/></DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ListBox.ItemContainerStyle>
+        </ListBox>
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>

@@ -1,0 +1,25 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+# Never commit local secrets or config
+hoard.local.json
+*.key
+DB_Password.txt
+*_password*.txt
+_to_delete*
+Claude outputs/
+publish/
+installer/.staging/
+installer/.cache/
+# Personal data and local tooling that must never reach a public repo
+Empower.csv
+*.csv
+!tests/**/*.csv
+.venv/
+installer/.patch/
+*.wixpdb
+*.log
+installer/*.zip

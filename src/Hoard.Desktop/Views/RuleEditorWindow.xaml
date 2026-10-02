@@ -1,0 +1,76 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.RuleEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Hoard - Categorization rule" Width="620" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+  <DockPanel>
+    <ui:TitleBar DockPanel.Dock="Top" Title="Categorization rule" ShowMaximize="False" ShowMinimize="False"/>
+  <Grid Margin="16">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+      <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" x:Name="Intro" TextWrapping="Wrap" Margin="0,0,0,10">
+      Transactions whose description or payee matches the pattern will be given this category automatically.
+      Rules never change a category you set by hand.
+    </TextBlock>
+
+    <Label Grid.Row="1" Content="Sample"/>
+    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SampleText}" Foreground="Gray" VerticalAlignment="Center" Margin="4" TextTrimming="CharacterEllipsis"/>
+
+    <Label Grid.Row="2" Content="Pattern"/>
+    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+      <ComboBox ItemsSource="{Binding MatchFields}" SelectedItem="{Binding MatchField}" Width="110" Margin="4"/>
+      <ComboBox ItemsSource="{Binding MatchTypes}" SelectedItem="{Binding MatchType}" Width="110" Margin="4"/>
+      <TextBox Text="{Binding Pattern, UpdateSourceTrigger=PropertyChanged}" Width="300" FontFamily="Consolas"/>
+    </StackPanel>
+    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SampleMatchText}" Margin="4,0,4,6" Foreground="DimGray"/>
+
+    <Label Grid.Row="4" Content="Category"/>
+    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding CategoryOptions}" SelectedItem="{Binding SelectedCategory}"
+              DisplayMemberPath="Path" Margin="4" IsEditable="False">
+      <ComboBox.ItemContainerStyle>
+        <Style TargetType="ComboBoxItem">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsParent}" Value="True">
+              <Setter Property="FontWeight" Value="Bold"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </ComboBox.ItemContainerStyle>
+    </ComboBox>
+
+    <Label Grid.Row="5" Content="Account"/>
+    <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding AccountOptions}" SelectedItem="{Binding SelectedAccount}" DisplayMemberPath="Name" Margin="4"/>
+
+    <Label Grid.Row="6" Content="Amount between"/>
+    <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal">
+      <TextBox Text="{Binding AmountMin, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" Width="110"/>
+      <TextBlock Text="and" VerticalAlignment="Center" Margin="4"/>
+      <TextBox Text="{Binding AmountMax, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" Width="110"/>
+      <TextBlock Text="(optional; expenses are negative)" Foreground="Gray" VerticalAlignment="Center" Margin="8,0"/>
+    </StackPanel>
+
+    <Label Grid.Row="7" Content="Priority"/>
+    <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal">
+      <TextBox Text="{Binding Priority, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+      <TextBlock Text="(lower runs first; your rules default to 100, built-in rules are 400-500)" Foreground="Gray" VerticalAlignment="Center" Margin="8,0"/>
+      <CheckBox Content="Enabled" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+    </StackPanel>
+
+    <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="{Binding Status}" TextWrapping="Wrap" Margin="4,10"/>
+
+    <StackPanel Grid.Row="9" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="SaveButton" Content="Save rule &amp; apply" Click="OnSaveClick" IsDefault="True"/>
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"/>
+    </StackPanel>
+  </Grid>
+  </DockPanel>
+</ui:FluentWindow>

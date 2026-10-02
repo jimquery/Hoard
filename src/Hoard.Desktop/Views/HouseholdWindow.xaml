@@ -1,0 +1,62 @@
+<ui:FluentWindow x:Class="Hoard.Desktop.Views.HouseholdWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:vm="clr-namespace:Hoard.Desktop.ViewModels"
+        Title="Hoard - Household members" Width="820" Height="520" MinWidth="680" MinHeight="400"
+        WindowStartupLocation="CenterOwner" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica" Loaded="OnLoaded">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <ui:TitleBar Grid.Row="0" Title="Household members" ShowMaximize="False" ShowMinimize="False"/>
+
+    <StackPanel Grid.Row="1" Margin="20,4,20,8">
+      <TextBlock Text="People in your household. Assign them as account owners on the Accounts page; dates of birth drive the College Savings projections." Style="{StaticResource Note}"/>
+      <ui:Card Padding="10,8">
+        <WrapPanel>
+          <ui:TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Name" Width="180" Margin="0,0,10,0"/>
+          <DatePicker SelectedDate="{Binding NewDateOfBirth}" Width="150" Margin="0,0,10,0" ToolTip="Date of birth (optional)"/>
+          <ComboBox ItemsSource="{Binding Source={x:Static vm:HouseholdViewModel.RelationshipChoices}}" SelectedItem="{Binding NewRelationship}" Width="120" Margin="0,0,10,0"/>
+          <ui:Button Content="Add member" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddCommand}" Margin="0,0,16,0"/>
+          <ui:Button Icon="{ui:SymbolIcon ArrowUp24}" Content="Up" Command="{Binding MoveUpCommand}" Margin="0,0,6,0"/>
+          <ui:Button Icon="{ui:SymbolIcon ArrowDown24}" Content="Down" Command="{Binding MoveDownCommand}" Margin="0,0,16,0"/>
+          <ui:Button Icon="{ui:SymbolIcon Delete24}" Content="Remove" Appearance="Danger" Click="OnDeleteClick"/>
+        </WrapPanel>
+      </ui:Card>
+    </StackPanel>
+
+    <DataGrid Grid.Row="2" Margin="20,0,20,8" ItemsSource="{Binding Members}" SelectedItem="{Binding Selected}" AutoGenerateColumns="False"
+              CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="*"/>
+        <DataGridTemplateColumn Header="Date of birth" Width="160">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <DatePicker SelectedDate="{Binding DateOfBirth, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="Transparent"/>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Age" Binding="{Binding AgeText, Mode=OneWay}" IsReadOnly="True" Width="60" ElementStyle="{StaticResource RightCell}"/>
+        <DataGridTextColumn Header="Turns 18" Binding="{Binding Turns18Text, Mode=OneWay}" IsReadOnly="True" Width="120"/>
+        <DataGridTemplateColumn Header="Relationship" Width="130">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <ComboBox ItemsSource="{Binding Source={x:Static vm:HouseholdViewModel.RelationshipChoices}}" IsEditable="True"
+                        Text="{Binding Relationship, UpdateSourceTrigger=LostFocus}" BorderThickness="0" Background="Transparent"/>
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Accounts" Binding="{Binding AccountCount, Mode=OneWay}" IsReadOnly="True" Width="80" ElementStyle="{StaticResource RightCell}"/>
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <DockPanel Grid.Row="3" Margin="20,0,20,16">
+      <ui:Button DockPanel.Dock="Right" Content="Close" IsCancel="True" MinWidth="90"/>
+      <TextBlock Text="{Binding Status}" Style="{StaticResource Muted}" VerticalAlignment="Center"/>
+    </DockPanel>
+  </Grid>
+</ui:FluentWindow>
