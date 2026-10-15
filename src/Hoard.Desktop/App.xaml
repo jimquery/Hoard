@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:conv="clr-namespace:Hoard.Desktop.Converters"
-             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
              ShutdownMode="OnExplicitShutdown">
   <Application.Resources>
     <ResourceDictionary>
@@ -60,21 +59,6 @@
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
       </Style>
 
-      <!-- Charts: legend and tooltip chrome follow light/dark (ChartResources swaps these paints on a theme change). -->
-      <Style TargetType="lvc:CartesianChart">
-        <Setter Property="LegendTextPaint" Value="{DynamicResource ChartLegendTextPaint}"/>
-        <Setter Property="TooltipTextPaint" Value="{DynamicResource ChartTooltipTextPaint}"/>
-        <Setter Property="TooltipBackgroundPaint" Value="{DynamicResource ChartTooltipBackgroundPaint}"/>
-        <Setter Property="LegendTextSize" Value="13"/>
-        <Setter Property="TooltipTextSize" Value="13"/>
-      </Style>
-      <Style TargetType="lvc:PieChart">
-        <Setter Property="LegendTextPaint" Value="{DynamicResource ChartLegendTextPaint}"/>
-        <Setter Property="TooltipTextPaint" Value="{DynamicResource ChartTooltipTextPaint}"/>
-        <Setter Property="TooltipBackgroundPaint" Value="{DynamicResource ChartTooltipBackgroundPaint}"/>
-        <Setter Property="LegendTextSize" Value="13"/>
-        <Setter Property="TooltipTextSize" Value="13"/>
-      </Style>
 
       <!-- KPI tile: label over a large figure, with an optional detail line -->
       <Style x:Key="KpiDetail" TargetType="TextBlock">

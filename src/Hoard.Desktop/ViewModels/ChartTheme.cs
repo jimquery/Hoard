@@ -1,10 +1,12 @@
 using System.Globalization;
+using System.Windows;
 using Hoard.Core.Reporting;
 using Hoard.Desktop.Services;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using LiveChartsCore.SkiaSharpView.WPF;
 using SkiaSharp;
 
 namespace Hoard.Desktop.ViewModels;
@@ -59,11 +61,21 @@ public sealed class ChartTheme
 
     public Axis CurrencyAxis() => new()
     {
-        Labeler = v => v.ToString("C0", CultureInfo.CurrentCulture),
+        Labeler = CompactCurrency,
         LabelsPaint = new SolidColorPaint(Muted),
         SeparatorsPaint = new SolidColorPaint(Grid) { StrokeThickness = 1 },
         TextSize = 12,
     };
+
+    /// <summary>Axis label: $950, $12K, $1.2M - full figures crowd each other once balances reach six digits.</summary>
+    public static string CompactCurrency(double value)
+    {
+        var abs = Math.Abs(value);
+        if (abs < 10_000) return value.ToString("C0", CultureInfo.CurrentCulture);
+        var (scaled, suffix) = abs >= 1e9 ? (abs / 1e9, "B") : abs >= 1e6 ? (abs / 1e6, "M") : (abs / 1e3, "K");
+        var sign = value < 0 ? CultureInfo.CurrentCulture.NumberFormat.NegativeSign : "";
+        return $"{sign}{CultureInfo.CurrentCulture.NumberFormat.CurrencySymbol}{scaled.ToString("0.#", CultureInfo.CurrentCulture)}{suffix}";
+    }
 
     public Axis CategoryAxis(string[] labels, double rotation = 0, bool everyLabel = false) => new()
     {
@@ -143,18 +155,52 @@ public sealed class ChartTheme
 
 /// <summary>
 /// The chart chrome that LiveCharts does not take from series: legend and tooltip text and the tooltip background.
-/// They live in application resources and every chart picks them up through the implicit styles in App.xaml
-/// (DynamicResource), so one call re-themes every open chart when light/dark changes.
+/// They live in application resources and every chart references them dynamically, so one call re-themes every open
+/// chart when light/dark changes.
 /// </summary>
+/// <remarks>
+/// The references are attached when a chart loads, not through implicit styles: a style is applied while LiveCharts'
+/// constructor is still running, and its text-paint change handler throws a NullReferenceException at that point.
+/// </remarks>
 public static class ChartResources
 {
     public const string LegendText = "ChartLegendTextPaint";
     public const string TooltipText = "ChartTooltipTextPaint";
     public const string TooltipBackground = "ChartTooltipBackgroundPaint";
+    private const double TextSize = 13;
+
+    /// <summary>Call once at startup, before any chart is created.</summary>
+    public static void Register()
+    {
+        EventManager.RegisterClassHandler(typeof(CartesianChart), FrameworkElement.LoadedEvent, new RoutedEventHandler(OnChartLoaded));
+        EventManager.RegisterClassHandler(typeof(PieChart), FrameworkElement.LoadedEvent, new RoutedEventHandler(OnChartLoaded));
+    }
+
+    private static void OnChartLoaded(object sender, RoutedEventArgs e)
+    {
+        var chart = (System.Windows.Controls.Control)sender;
+        // LiveCharts paints its own theme's background (white unless Windows itself is dark); let the card show through.
+        if (chart.ReadLocalValue(System.Windows.Controls.Control.BackgroundProperty) == DependencyProperty.UnsetValue)
+            chart.Background = System.Windows.Media.Brushes.Transparent;
+        // Loaded fires again on every page switch; a value the XAML set itself also wins, as it did over the style.
+        Reference(chart, CartesianChart.LegendTextPaintProperty, LegendText);
+        Reference(chart, CartesianChart.TooltipTextPaintProperty, TooltipText);
+        Reference(chart, CartesianChart.TooltipBackgroundPaintProperty, TooltipBackground);
+        if (chart.ReadLocalValue(CartesianChart.LegendTextSizeProperty) == DependencyProperty.UnsetValue)
+            chart.SetValue(CartesianChart.LegendTextSizeProperty, TextSize);
+        if (chart.ReadLocalValue(CartesianChart.TooltipTextSizeProperty) == DependencyProperty.UnsetValue)
+            chart.SetValue(CartesianChart.TooltipTextSizeProperty, TextSize);
+    }
+
+    private static void Reference(FrameworkElement chart, DependencyProperty property, string key)
+    {
+        if (chart.ReadLocalValue(property) == DependencyProperty.UnsetValue)
+            chart.SetResourceReference(property, key);
+    }
 
     public static void Update(bool isDark)
     {
-        if (System.Windows.Application.Current is not { } app) return;
+        if (Application.Current is not { } app) return;
         var ink = isDark ? SKColor.Parse("#f3f3f1") : SKColor.Parse("#1b1b1a");
         app.Resources[LegendText] = new SolidColorPaint(isDark ? SKColor.Parse("#d6d5cf") : SKColor.Parse("#3b3a37"));
         app.Resources[TooltipText] = new SolidColorPaint(ink);

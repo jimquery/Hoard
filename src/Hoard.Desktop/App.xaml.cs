@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using Hoard.Core;
 using Hoard.Core.Categorization;
@@ -20,12 +21,13 @@ public partial class App : Application
         base.OnStartup(e);
         DispatcherUnhandledException += (_, args) =>
         {
-            MessageBox.Show(args.Exception.Message, "Hoard - Unexpected error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Describe(args.Exception), "Hoard - Unexpected error", MessageBoxButton.OK, MessageBoxImage.Error);
             args.Handled = true;
         };
 
         var settings = SettingsStore.Load();
         var theme = new ThemeService(settings);
+        ChartResources.Register();
         theme.Apply();
 
         if (!settings.Database.IsConfigured)
@@ -51,7 +53,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Hoard could not open its database.\n\n{ex.Message}\n\nCheck that MySQL is running, or delete {SettingsStore.DefaultPath} to run setup again.",
+                $"Hoard could not open its database.\n\n{Describe(ex)}\n\nCheck that MySQL is running, or delete {SettingsStore.DefaultPath} to run setup again.",
                 "Hoard - Database error", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
@@ -60,6 +62,25 @@ public partial class App : Application
         var main = new MainWindow { DataContext = Services.GetRequiredService<MainViewModel>() };
         main.Closed += (_, _) => Shutdown();
         main.Show();
+    }
+
+    /// <summary>
+    /// The root cause's message (reflection and XAML wrap the real error in TargetInvocationException), with the
+    /// full exception written to desktop-error.log next to hoard.json.
+    /// </summary>
+    private static string Describe(Exception ex)
+    {
+        var log = Path.Combine(SettingsStore.DefaultDirectory, "desktop-error.log");
+        try
+        {
+            File.AppendAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch (Exception)
+        {
+            log = null;
+        }
+        var root = ex.GetBaseException();
+        return log is null ? root.Message : $"{root.Message}\n\nDetails: {log}";
     }
 
     private static ServiceProvider BuildServices(HoardSettings settings, ThemeService theme)
