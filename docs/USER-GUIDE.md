@@ -30,14 +30,31 @@ The dashboard reloads itself after a sync, an import, or any change on another p
 
 ## Institutions
 
-An institution is one connection: a SimpleFIN access token (covering every bank you linked at the Bridge), the
-built-in **Real estate** institution that holds your properties, or **Imported**, which holds history-only accounts
-created by a CSV import.
+An institution is one connection: a SimpleFIN access token (covering every bank you linked at the Bridge), one
+Plaid bank login, the built-in **Real estate** institution that holds your properties, or **Imported**, which holds
+history-only accounts created by a CSV import.
 
-- **Add** — paste a SimpleFIN setup token (see INSTALL.md step 3).
+- **Add SimpleFIN** — paste a SimpleFIN setup token (see INSTALL.md step 3).
+- **Add Plaid** — connect one bank through [Plaid](https://plaid.com/). Enter your Plaid app's client id and secret
+  (dashboard.plaid.com › Developers › Keys; a Trial plan uses the *Production* environment) — they are remembered
+  for the next Plaid bank. *Connect a bank…* opens Plaid Link in your browser; choose the bank and sign in there.
+  Back in Hoard, each account Plaid found is listed with a **Hoard account** choice:
+  - *Create a new account*, or
+  - an account Hoard already has (for example from SimpleFIN or a CSV import). Hoard pre-selects the likely match
+    from the account number's last digits, the bank, the name and the balance; check every row before saving.
+    A linked account is **taken over** by Plaid: it keeps its id, name, type, owner, categories, rules and full
+    history, the old connection stops updating it (and does not re-create it), and Plaid's first download is
+    matched against the history it already has — same amount within three days — so the overlap is not duplicated
+    and your categories on those rows are kept.
+
+  Closing the window before *Save* deletes the just-linked bank at Plaid again, so it does not use up one of your
+  plan's connections.
+- **Reconnect Plaid login…** (right-click a Plaid institution) — when its sync fails with ITEM_LOGIN_REQUIRED,
+  sign in to the bank again through Plaid Link; accounts and history are untouched.
 - **Rename** / double-click — the name is yours; the bank's own name is shown on each account.
 - **Remove** — deletes the connection, its stored credential, its accounts and every transaction. You are asked to
-  confirm.
+  confirm. Removing a Plaid institution first hands any accounts it took over back to the connection they came from,
+  with their history, and removes the bank login at Plaid.
 - **Sync all** (F5) and **Sync selected** — fetch now rather than waiting for the background service. The grid
   shows each institution's last sync time and any error (for example a bank that needs re-authentication at the
   Bridge).
@@ -143,27 +160,60 @@ first on every imported row and win over the file's category; rows no rule match
 Imported history-only accounts are excluded from net worth automatically, so they feed the spending reports without
 distorting balances.
 
+## Budget
+
+A monthly budget by **category group** (the top-level expense categories). For the month you pick, each group shows:
+
+- **Last 12 months**: a sparkline of the group's spending in the 12 complete months before (hover a bar for the figure).
+- **Typical** and **Forecast**: the typical month is the 12-month average with the highest and lowest months left
+  out, so one annual bill or a holiday does not set the baseline. The forecast starts there and moves toward the trend
+  line only as far as the trend is consistent (a steady rise or fall moves it up to halfway; noisy months barely move
+  it). Hover the forecast for its likely range (about eight months in ten fall inside it).
+- **Trend**: how much the group's spending has been rising or falling per month; hover for how reliable that is.
+- **Target / month**: type an amount and press Enter. A target applies from the month shown onward, so changing it
+  never rewrites how earlier months compare with the target that applied to them; clear it to remove it.
+  **Use suggested targets** gives every group without a target its forecast rounded up; **Reset all...** replaces every
+  target with the suggestion.
+- **Spent**, **Projected** (for the current month: spent so far plus the forecast for the days left), a **Used** bar,
+  what is **Left**, and a **Status**: on track, at risk (under target now but projected over), or over.
+
+Spending is measured exactly as the Spending report measures it (spending account types only, transfers and income
+excluded). Uncategorized spending appears as its own line; categorize it to budget it. Next month is in the list for
+planning ahead.
+
 ## Reports
 
-Five reports on tabs. All of them reload after a sync or import.
+Seven reports on tabs. All of them reload after a sync, an import or a budget change, and they follow the light/dark
+theme, including the legends and tooltips. Hover any chart for every series at that point.
 
 ### Net worth
 
-Daily net worth over time, from the earliest data to today, stacked by account type (**Break down assets by account type**) or as one line. Hoard records
-each account's balance every day it syncs; **Include estimated history** fills the days in between by walking the
-balance backwards through the transactions, so importing years of history extends the chart. With it off only
-observed days are shown. Pick a range from the drop-down.
+Headline tiles (net worth, change over the range, assets, liabilities) above daily net worth over time, from the
+earliest data to today, stacked by account type (**Break down assets by account type**) or as one line. Drag to pan
+and scroll to zoom; **Reset zoom** returns to the whole range. Hoard records each account's balance every day it
+syncs; **Include estimated history** fills the days in between by walking the balance backwards through the
+transactions, so importing years of history extends the chart. With it off only observed days are shown.
 
 ### Income vs. expenses
 
-Income and expenses per month for the chosen range, with uncategorized amounts shown separately so you can see how
-much is unassigned. Only accounts whose type is ticked for *Spending reports* count.
+Tiles for average monthly income, expenses and savings rate (complete months only), then income, expenses and net
+per month with a grid that adds the share of income saved. **Click a month's bar** (or double-click a row) to open
+that month on the Spending tab. Only accounts whose type is ticked for *Spending reports* count.
 
-### Spending by category
+### Spending
 
-Two charts for a chosen month: the twelve-month trend stacked by category group, and the month's spending by
-category compared with the same month a year earlier (**Compare with prior year**). The grid lists every category
-with its amount and transaction count.
+Tiles for the month's spending, the same month a year earlier and the largest group. The twelve-month trend is
+stacked by category group: **click a column** to open that month and group. Below, a donut of the month by group:
+**click a slice** to drill into that group, which shows its categories against the same month last year (**All
+groups** goes back). The grid lists the categories (just the group's, when drilled in); **double-click a row** or use
+**Transactions** to open the matching transactions on the Transactions page.
+
+### Budget vs. actual
+
+For a month: tiles for the total target, what the groups with a target have spent, the projected month end and how
+many groups are over. The bar chart compares target, actual and (for the current month) projected spending per group;
+the chart beside it shows spending against target over the last 12 months, for all budgeted groups or for one group
+after you click its bar or row. Double-click a row for its transactions.
 
 ### Balances by account type
 
@@ -186,6 +236,22 @@ vendor, tallest first; the grid lists every charge that belongs to a subscriptio
 description, account, category, amount and cost per year. **Active only** hides subscriptions whose charges have
 stopped. Rent, utilities and insurance recur just as regularly, so they appear too — the category column tells them
 apart.
+
+## AI Advisor
+
+Ask Claude about your finances: a full check-up, where to cut spending, how the budget is going, which subscriptions
+to drop, how to grow your net worth, whether your emergency fund is big enough, or anything else. Claude reads your
+figures through Hoard's own tools (balances, cash flow, spending by category, trends, budget, net-worth history and,
+if you allow it, merchants, subscriptions and individual transactions) and answers with specific recommendations and
+their dollar impact. While it works, the page lists what it is looking at; follow-up questions keep the context.
+**Save...** writes the conversation to a Markdown file.
+
+**This is the one feature that sends data off your PC.** It is off until you turn it on under *Settings* on the
+page: read what is shared, choose whether to allow transaction detail and how deeply Claude should think, paste an
+Anthropic API key (console.anthropic.com), and confirm. The key is stored encrypted like your bank keys; the
+questions and the figures Claude looks up go to Anthropic's API, billed to your Anthropic account (each answer shows
+an estimate, typically cents). Account numbers and bank logins are never sent. **Turn off and delete key** removes
+it. The answers are general information about your own numbers, not regulated financial advice.
 
 ## Settings
 

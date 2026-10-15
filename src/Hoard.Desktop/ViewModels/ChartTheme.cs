@@ -140,3 +140,24 @@ public sealed class ChartTheme
         return series.ToArray();
     }
 }
+
+/// <summary>
+/// The chart chrome that LiveCharts does not take from series: legend and tooltip text and the tooltip background.
+/// They live in application resources and every chart picks them up through the implicit styles in App.xaml
+/// (DynamicResource), so one call re-themes every open chart when light/dark changes.
+/// </summary>
+public static class ChartResources
+{
+    public const string LegendText = "ChartLegendTextPaint";
+    public const string TooltipText = "ChartTooltipTextPaint";
+    public const string TooltipBackground = "ChartTooltipBackgroundPaint";
+
+    public static void Update(bool isDark)
+    {
+        if (System.Windows.Application.Current is not { } app) return;
+        var ink = isDark ? SKColor.Parse("#f3f3f1") : SKColor.Parse("#1b1b1a");
+        app.Resources[LegendText] = new SolidColorPaint(isDark ? SKColor.Parse("#d6d5cf") : SKColor.Parse("#3b3a37"));
+        app.Resources[TooltipText] = new SolidColorPaint(ink);
+        app.Resources[TooltipBackground] = new SolidColorPaint(isDark ? SKColor.Parse("#2c2c2a") : SKColor.Parse("#ffffff"));
+    }
+}

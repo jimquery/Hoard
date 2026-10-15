@@ -10,7 +10,9 @@
 
     <DockPanel Grid.Row="0" Margin="0,0,0,8">
       <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-        <ui:Button Content="Add" Icon="{ui:SymbolIcon Add24}" Click="OnAddClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Add SimpleFIN" Icon="{ui:SymbolIcon Add24}" Click="OnAddClick" Margin="0,0,8,0"/>
+        <ui:Button Content="Add Plaid" Icon="{ui:SymbolIcon Link24}" Click="OnAddPlaidClick" Margin="0,0,8,0"
+                   ToolTip="Connect a bank through Plaid Link, optionally taking over accounts Hoard already has (e.g. from SimpleFIN) with their history."/>
         <ui:Button Content="Rename" Icon="{ui:SymbolIcon Rename24}" Click="OnRenameClick" IsEnabled="{Binding HasSelectedInstitution}" Margin="0,0,8,0"/>
         <ui:Button Content="Remove" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Click="OnRemoveClick" IsEnabled="{Binding HasSelectedInstitution}" Margin="0,0,16,0"/>
         <ui:Button Content="Sync all" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding SyncAllCommand}" Margin="0,0,8,0" ToolTip="F5"/>
@@ -18,7 +20,7 @@
       </StackPanel>
       <StackPanel>
         <TextBlock Text="Institutions" Style="{StaticResource PageTitle}"/>
-        <TextBlock Text="Each institution is one connection — a SimpleFIN access token, the Real estate valuations, or the Imported history. Add a bank with a SimpleFIN setup token; Sync fetches its accounts and transactions." Style="{StaticResource Note}"/>
+        <TextBlock Text="Each institution is one connection — a SimpleFIN access token, a Plaid bank login, the Real estate valuations, or the Imported history. Add a bank with a SimpleFIN setup token or through Plaid; Sync fetches its accounts and transactions." Style="{StaticResource Note}"/>
       </StackPanel>
     </DockPanel>
 
@@ -31,6 +33,8 @@
           <ContextMenu>
             <MenuItem Header="Sync this institution" Command="{Binding SyncSelectedCommand}"/>
             <MenuItem Header="Rename..." Click="OnRenameClick"/>
+            <MenuItem Header="Reconnect Plaid login..." Click="OnReconnectClick" IsEnabled="{Binding SelectedInstitution.IsPlaid, FallbackValue=False}"
+                      ToolTip="When Plaid reports that the bank needs you to sign in again (ITEM_LOGIN_REQUIRED)."/>
             <Separator/>
             <MenuItem Header="Remove..." Click="OnRemoveClick"/>
           </ContextMenu>

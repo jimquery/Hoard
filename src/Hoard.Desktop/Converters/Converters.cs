@@ -57,3 +57,30 @@ public sealed class StringEqualsConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
         value is true ? parameter! : Binding.DoNothing;
 }
+
+/// <summary>Budget status → the Fluent status brush: over = critical, at risk = caution, on track = success, no target = tertiary text.</summary>
+public sealed class BudgetStatusToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var key = value switch
+        {
+            Hoard.Core.Budgeting.BudgetStatus.Over => "SystemFillColorCriticalBrush",
+            Hoard.Core.Budgeting.BudgetStatus.AtRisk => "SystemFillColorCautionBrush",
+            Hoard.Core.Budgeting.BudgetStatus.OnTrack => "SystemFillColorSuccessBrush",
+            _ => "TextFillColorTertiaryBrush",
+        };
+        return Application.Current.TryFindResource(key) ?? Brushes.Gray;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Multiplies a number by the converter parameter (e.g. a 0..1 share into pixels).</summary>
+public sealed class ScaleConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        System.Convert.ToDouble(value, CultureInfo.InvariantCulture) * double.Parse(parameter?.ToString() ?? "1", CultureInfo.InvariantCulture);
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}

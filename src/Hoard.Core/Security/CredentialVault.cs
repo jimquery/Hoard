@@ -26,7 +26,17 @@ public sealed class CredentialVault
         _protector = protector;
     }
 
-    public async Task<SealedSecret> SealAsync(long institutionId, string plaintext, CancellationToken ct = default)
+    public Task<SealedSecret> SealAsync(long institutionId, string plaintext, CancellationToken ct = default) =>
+        SealAsync(InstitutionContext(institutionId), plaintext, ct);
+
+    public Task<string> OpenAsync(long institutionId, SealedSecret sealedSecret, CancellationToken ct = default) =>
+        OpenAsync(InstitutionContext(institutionId), sealedSecret, ct);
+
+    /// <summary>
+    /// Seals a secret bound to <paramref name="context"/> (the associated data): it only opens under the same context,
+    /// so a blob copied to another row or setting fails authentication. Institutions use "hoard:institution:{id}".
+    /// </summary>
+    public async Task<SealedSecret> SealAsync(string context, string plaintext, CancellationToken ct = default)
     {
         var (version, key) = await GetCurrentKeyAsync(ct);
         var nonce = RandomNumberGenerator.GetBytes(12);
@@ -34,23 +44,23 @@ public sealed class CredentialVault
         var cipher = new byte[plain.Length];
         var tag = new byte[16];
         using var aes = new AesGcm(key, 16);
-        aes.Encrypt(nonce, plain, cipher, tag, Aad(institutionId));
+        aes.Encrypt(nonce, plain, cipher, tag, Encoding.UTF8.GetBytes(context));
         CryptographicOperations.ZeroMemory(plain);
         return new SealedSecret(version, nonce, cipher, tag);
     }
 
-    public async Task<string> OpenAsync(long institutionId, SealedSecret sealedSecret, CancellationToken ct = default)
+    public async Task<string> OpenAsync(string context, SealedSecret sealedSecret, CancellationToken ct = default)
     {
         var key = await GetKeyAsync(sealedSecret.KeyVersion, ct);
         var plain = new byte[sealedSecret.Ciphertext.Length];
         using var aes = new AesGcm(key, 16);
-        aes.Decrypt(sealedSecret.Nonce, sealedSecret.Ciphertext, sealedSecret.Tag, plain, Aad(institutionId));
+        aes.Decrypt(sealedSecret.Nonce, sealedSecret.Ciphertext, sealedSecret.Tag, plain, Encoding.UTF8.GetBytes(context));
         var text = Encoding.UTF8.GetString(plain);
         CryptographicOperations.ZeroMemory(plain);
         return text;
     }
 
-    private static byte[] Aad(long institutionId) => Encoding.UTF8.GetBytes("hoard:institution:" + institutionId);
+    private static string InstitutionContext(long institutionId) => "hoard:institution:" + institutionId;
 
     private async Task<(int Version, byte[] Key)> GetCurrentKeyAsync(CancellationToken ct)
     {

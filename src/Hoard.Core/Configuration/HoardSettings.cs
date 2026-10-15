@@ -15,6 +15,22 @@ public sealed class HoardSettings
     public SyncSettings Sync { get; set; } = new();
     public SecuritySettings Security { get; set; } = new();
     public UiSettings Ui { get; set; } = new();
+    public AdvisorSettings Advisor { get; set; } = new();
+}
+
+/// <summary>AI advisor choices. The Anthropic API key itself is sealed in the database, not stored here.</summary>
+public sealed class AdvisorSettings
+{
+    public static IReadOnlyList<string> Efforts { get; } = ["low", "medium", "high"];
+
+    /// <summary>The user read what the advisor sends to Anthropic and turned it on.</summary>
+    public bool Accepted { get; set; }
+    /// <summary>Also share merchant names and individual transactions (search, top merchants, subscriptions), not only totals.</summary>
+    public bool AllowTransactionDetail { get; set; } = true;
+    /// <summary>"low", "medium" or "high": how hard the model thinks (and how much an answer costs).</summary>
+    public string Effort { get; set; } = "high";
+    /// <summary>Claude model id; blank = the default.</summary>
+    public string? Model { get; set; }
 }
 
 public sealed class UiSettings

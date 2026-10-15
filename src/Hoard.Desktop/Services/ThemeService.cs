@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using Hoard.Core.Configuration;
+using Hoard.Desktop.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -13,13 +14,24 @@ public sealed record AccentPreset(string Name, string? Hex)
 
 /// <summary>
 /// Applies the persisted UI theme (System/Light/Dark), accent color and window backdrop through WPF-UI,
-/// and tells interested view models (charts) when the theme changes.
+/// and tells interested view models (charts) when the theme changes between light and dark - whether from Settings or,
+/// under "System", from Windows switching while the app runs.
 /// </summary>
 public sealed class ThemeService
 {
     private readonly HoardSettings _settings;
+    private bool? _lastDark;
 
-    public ThemeService(HoardSettings settings) => _settings = settings;
+    public ThemeService(HoardSettings settings)
+    {
+        _settings = settings;
+        ApplicationThemeManager.Changed += (_, _) =>
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher is null || dispatcher.CheckAccess()) RaiseIfChanged();
+            else dispatcher.BeginInvoke(RaiseIfChanged);
+        };
+    }
 
     public static IReadOnlyList<string> ThemeOptions { get; } = ["System", "Light", "Dark"];
     public static IReadOnlyList<string> BackdropOptions { get; } = ["Mica", "Acrylic", "None"];
@@ -36,6 +48,7 @@ public sealed class ThemeService
         new("Gold", "#eda100"),
     ];
 
+    /// <summary>Raised when the effective theme flips between light and dark. Chart paints are already updated.</summary>
     public event Action? Changed;
 
     public string Theme => _settings.Ui.Theme;
@@ -65,6 +78,15 @@ public sealed class ThemeService
         if (customAccent is { } accent)
             ApplicationAccentColorManager.Apply(accent, ApplicationThemeManager.GetAppTheme(), systemGlassColor: false);
 
+        RaiseIfChanged();
+    }
+
+    private void RaiseIfChanged()
+    {
+        var dark = IsDark;
+        if (_lastDark == dark) return;
+        _lastDark = dark;
+        ChartResources.Update(dark);
         Changed?.Invoke();
     }
 

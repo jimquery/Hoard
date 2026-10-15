@@ -1,5 +1,64 @@
 # Hoard changelog
 
+## Unreleased
+
+Migrations 0010 and 0011 change the schema (new `account_handovers`, `budget_targets` and `secret_settings` tables,
+`transactions.adopted_from_external_id`).
+
+### Added
+- **Plaid as a second bank provider** (Institutions › Add Plaid). `PlaidClient`/`PlaidProvider` in Core talk to the
+  Plaid API with the user's own app keys (Sandbox or Production — a Trial plan is Production). Linking uses Plaid
+  **Hosted Link**: the desktop opens the Link URL in the browser and polls `/link/token/get` until the session
+  finishes, so no web view or webhook endpoint is needed; the public token is exchanged for the Item's access token,
+  which is sealed with the app keys in the institution credential like any other secret. Syncs use
+  `/transactions/get` (paged, bank's original description, merchant as payee) and Plaid's cached balances; Plaid's
+  signs are flipped to Hoard's (outflows and liability balances negative). PRODUCT_NOT_READY right after linking
+  fails the sync with an explanation instead of recording an empty first sync. *Reconnect Plaid login…* runs Link in
+  update mode for ITEM_LOGIN_REQUIRED.
+- **Linking new-connection accounts to existing accounts (handover).** After Plaid Link, each Plaid account can be
+  mapped to an account Hoard already has (pre-selected by `AccountLinkSuggester` from mask, bank, name and balance).
+  The account row is handed over — new institution and provider id, same id, history, categories, rules and settings
+  — and an `account_handovers` row makes the old connection's sync skip that provider account instead of
+  re-creating it. On the new connection's downloads, `HandoverMatcher` pairs transactions with rows that existed at
+  the handover (same amount, within three days, description as tie-break); a matched row adopts the new id, so the
+  overlap is not duplicated and its category survives. Removing the new institution hands such accounts back to
+  their earlier connection (old ids restored) instead of deleting their history. Merging accounts carries handovers
+  to the survivor.
+
+- **Budget page.** Monthly targets per category group (top-level expense category) with a forecast from the 12
+  complete months before the month shown: `BudgetForecaster` takes a trimmed mean (highest and lowest month dropped),
+  blends toward the least-squares trend's next point by half its R squared, and gives a +/-1.28 sigma range; the
+  suggested target is the forecast rounded up. Current-month projection = spent so far + forecast x days left / days
+  in month. Status: on track / at risk / over. Targets are stored with history (`budget_targets`, effective month), so
+  a change applies from the month shown onward and earlier months keep the target that applied then. *Use suggested
+  targets* and *Reset all* fill targets from the forecasts.
+- **Reports: Budget vs. actual tab**: KPI tiles, target/actual/projected bars per group, a 12-month actual-vs-target
+  chart for all budgeted groups or one group, and a variance grid.
+- **Interactive reports.** KPI tiles on every transaction report; net worth zooms and pans (with *Reset zoom*);
+  tooltips list every series at a point; clicking an income/expense bar or a spending-trend column opens that month on
+  the Spending tab; a donut of the month by group drills into a group's categories against last year; grids and a
+  *Transactions* button open the Transactions page filtered to the category and month. *Spending by category* is now
+  *Spending*.
+- **AI Advisor (opt-in).** A chat page backed by Claude (`claude-opus-5-5` through the official Anthropic C# SDK, beta
+  Messages API with automatic prompt caching and server-side refusal fallback `fallbacks: "default"`). Claude reads
+  the household's data only through `FinancialToolbox` tools executed locally (overview, monthly cash flow, spending
+  by category, spending trend, budget, net-worth history and, when transaction detail is allowed, subscriptions, top
+  merchants and transaction search) and answers in Markdown, rendered natively. Off until the user reads what is
+  shared, consents and enters an Anthropic API key; the key is sealed in the new `secret_settings` table
+  (`CredentialVault` now seals arbitrary contexts; institutions keep their associated data). Effort and the
+  transaction-detail switch are in `hoard.json` (`Advisor`). Each answer shows the data it read and an estimated cost;
+  conversations can be saved as Markdown.
+
+### Fixed
+- **Charts ignored dark mode.** Legend text, tooltip text and tooltip backgrounds were LiveCharts' light defaults on
+  every chart. They now come from theme-aware paints in application resources applied by implicit chart styles, and
+  `ThemeService` re-themes all charts when Windows switches light/dark under the *System* theme (previously only a
+  change in Settings refreshed them).
+
+### Changed
+- A connection's first sync always requests the full initial history window, even when it took over accounts that
+  already have transactions.
+
 ## 2.0.1 — 2026-09-26
 
 Deployable as an in-place patch over 2.0.0 (`installer\patch-installed.ps1`): no schema change, no installer or

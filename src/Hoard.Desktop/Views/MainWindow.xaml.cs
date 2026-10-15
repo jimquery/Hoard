@@ -51,7 +51,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InstitutionsPage.Visibility = page == AppPage.Institutions ? Visibility.Visible : Visibility.Collapsed;
         AccountsPage.Visibility = page == AppPage.Accounts ? Visibility.Visible : Visibility.Collapsed;
         TransactionsPage.Visibility = page == AppPage.Transactions ? Visibility.Visible : Visibility.Collapsed;
+        BudgetPage.Visibility = page == AppPage.Budget ? Visibility.Visible : Visibility.Collapsed;
         ReportsPage.Visibility = page == AppPage.Reports ? Visibility.Visible : Visibility.Collapsed;
+        AdvisorPage.Visibility = page == AppPage.Advisor ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = page == AppPage.Settings ? Visibility.Visible : Visibility.Collapsed;
 
         _syncingRail = true;

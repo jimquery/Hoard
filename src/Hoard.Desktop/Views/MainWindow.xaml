@@ -113,8 +113,14 @@
         <ListBoxItem Tag="Transactions">
           <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Receipt24" Style="{StaticResource RailIcon}"/><TextBlock Text="Transactions" VerticalAlignment="Center"/></StackPanel>
         </ListBoxItem>
+        <ListBoxItem Tag="Budget">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Savings24" Style="{StaticResource RailIcon}"/><TextBlock Text="Budget" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
         <ListBoxItem Tag="Reports">
           <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="DataTrending24" Style="{StaticResource RailIcon}"/><TextBlock Text="Reports" VerticalAlignment="Center"/></StackPanel>
+        </ListBoxItem>
+        <ListBoxItem Tag="Advisor">
+          <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Sparkle24" Style="{StaticResource RailIcon}"/><TextBlock Text="AI Advisor" VerticalAlignment="Center"/></StackPanel>
         </ListBoxItem>
         <ListBoxItem Tag="Settings">
           <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Settings24" Style="{StaticResource RailIcon}"/><TextBlock Text="Settings" VerticalAlignment="Center"/></StackPanel>
@@ -129,7 +135,9 @@
           <views:InstitutionsView x:Name="InstitutionsPage" Visibility="Collapsed"/>
           <views:AccountsView x:Name="AccountsPage" Visibility="Collapsed"/>
           <views:TransactionsView x:Name="TransactionsPage" Visibility="Collapsed"/>
+          <views:BudgetView x:Name="BudgetPage" DataContext="{Binding Budget}" Visibility="Collapsed"/>
           <views:ReportsView x:Name="ReportsPage" DataContext="{Binding Reports}" Visibility="Collapsed"/>
+          <views:AdvisorView x:Name="AdvisorPage" DataContext="{Binding Advisor}" Visibility="Collapsed"/>
           <views:SettingsView x:Name="SettingsPage" DataContext="{Binding Settings}" Visibility="Collapsed"/>
         </Grid>
       </Border>

@@ -274,6 +274,8 @@ public sealed class AccountRepository : IAccountRepository
         await c.ExecuteAsync("UPDATE properties SET account_id = @keepId WHERE account_id = @absorbId", new { keepId, absorbId }, tx);
         await c.ExecuteAsync("UPDATE import_mappings SET target_id = @keepId WHERE kind = @kind AND target_id = @absorbId",
             new { keepId, absorbId, kind = (int)ImportMappingKind.Account }, tx);
+        // Handovers keep telling the old connection to skip this account, whichever row survives.
+        await c.ExecuteAsync("UPDATE account_handovers SET account_id = @keepId WHERE account_id = @absorbId", new { keepId, absorbId }, tx);
 
         // 3. User settings the survivor lacks come across; its own choices are never overwritten.
         await c.ExecuteAsync("""
@@ -509,6 +511,10 @@ public interface ITransactionRepository
     Task<IReadOnlyDictionary<long, int>> CountByAccountAsync(CancellationToken ct = default);
     /// <summary>Removes pending transactions for an account that are absent from the latest provider response.</summary>
     Task<int> DeleteStalePendingAsync(long accountId, IReadOnlyCollection<string> livePendingExternalIds, CancellationToken ct = default);
+    /// <summary>An account's transactions posted in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>], for <see cref="HandoverMatcher"/>.</summary>
+    Task<IReadOnlyList<HandoverTransactionRow>> ListForHandoverAsync(long accountId, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default);
+    /// <summary>Gives a stored row the new connection's id, keeping its old id in adopted_from_external_id ('' when it had none).</summary>
+    Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default);
 }
 
 public sealed class TransactionRepository : ITransactionRepository
@@ -664,6 +670,26 @@ public sealed class TransactionRepository : ITransactionRepository
               JOIN accounts a ON a.id = t.account_id
              WHERE a.institution_id = @institutionId AND t.is_pending = 0
             """, new { institutionId });
+    }
+
+    public async Task<IReadOnlyList<HandoverTransactionRow>> ListForHandoverAsync(long accountId, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default)
+    {
+        using var c = await _f.OpenAsync(ct);
+        return (await c.QueryAsync<HandoverTransactionRow>("""
+            SELECT id, external_id, posted_at_utc, amount, description, created_at_utc, adopted_from_external_id
+              FROM transactions
+             WHERE account_id = @accountId AND posted_at_utc >= @fromUtc AND posted_at_utc < @toUtc
+            """, new { accountId, fromUtc, toUtc })).ToList();
+    }
+
+    public async Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
+    {
+        using var c = await _f.OpenAsync(ct);
+        await c.ExecuteAsync("""
+            UPDATE transactions
+               SET adopted_from_external_id = COALESCE(adopted_from_external_id, external_id, ''), external_id = @externalId, updated_at_utc = @now
+             WHERE id = @transactionId
+            """, new { transactionId, externalId, now = DateTime.UtcNow });
     }
 
     public async Task<int> DeleteStalePendingAsync(long accountId, IReadOnlyCollection<string> livePendingExternalIds, CancellationToken ct = default)

@@ -1,7 +1,10 @@
+using Hoard.Core.Advisor;
+using Hoard.Core.Budgeting;
 using Hoard.Core.Categorization;
 using Hoard.Core.Configuration;
 using Hoard.Core.Data;
 using Hoard.Core.Providers;
+using Hoard.Core.Providers.Plaid;
 using Hoard.Core.Providers.RealEstate;
 using Hoard.Core.Providers.SimpleFin;
 using Hoard.Core.Reporting;
@@ -34,6 +37,7 @@ public static class HoardServices
         services.AddSingleton<IAccountRepository, AccountRepository>();
         services.AddSingleton<ITransactionRepository, TransactionRepository>();
         services.AddSingleton<ISyncRunRepository, SyncRunRepository>();
+        services.AddSingleton<IAccountHandoverRepository, AccountHandoverRepository>();
         services.AddSingleton<ICategoryRepository, CategoryRepository>();
         services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IImportRepository, ImportRepository>();
@@ -42,6 +46,14 @@ public static class HoardServices
         services.AddSingleton<IReportRepository, ReportRepository>();
         services.AddSingleton<ReportingService>();
         services.AddSingleton<CredentialVault>();
+        services.AddSingleton<ISecretSettingsStore, SecretSettingsStore>();
+        services.AddSingleton<SecretSettings>();
+        services.AddSingleton<IBudgetRepository, BudgetRepository>();
+        services.AddSingleton<BudgetService>();
+        services.AddSingleton(sp => new FinancialToolbox(
+            sp.GetRequiredService<ReportingService>(), sp.GetRequiredService<IReportRepository>(), sp.GetRequiredService<BudgetService>(),
+            sp.GetRequiredService<ITransactionRepository>(), sp.GetRequiredService<ICategoryRepository>(), sp.GetRequiredService<IHouseholdRepository>()));
+        services.AddSingleton<AdvisorService>();
 
         services.AddSingleton(sp =>
         {
@@ -50,6 +62,14 @@ public static class HoardServices
             return new SimpleFinClient(http);
         });
         services.AddSingleton<IFinancialProvider, SimpleFinProvider>();
+
+        services.AddSingleton(_ =>
+        {
+            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Hoard/2.1 (+personal finance aggregator)");
+            return new PlaidClient(http);
+        });
+        services.AddSingleton<IFinancialProvider, PlaidProvider>();
 
         services.AddSingleton<IPropertyRepository, PropertyRepository>();
         services.AddSingleton<IPropertyValueProvider>(_ =>

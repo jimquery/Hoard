@@ -13,6 +13,8 @@ namespace Hoard.Desktop.ViewModels;
 public sealed partial class InstitutionItem : ObservableObject
 {
     public long Id { get; init; }
+    public ProviderKind Provider { get; init; }
+    public bool IsPlaid => Provider == ProviderKind.Plaid;
     [ObservableProperty] private string _name = "";
     [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private string? _lastError;
@@ -20,6 +22,7 @@ public sealed partial class InstitutionItem : ObservableObject
     public static InstitutionItem From(Institution i) => new()
     {
         Id = i.Id,
+        Provider = i.Provider,
         Name = i.Name,
         StatusText = i.LastSyncStatus switch
         {
@@ -146,7 +149,7 @@ public sealed record AccountFilterOption(long Id, string Label, long? TypeId)
     public override string ToString() => Label;
 }
 
-public enum AppPage { Dashboard, Institutions, Accounts, Transactions, Reports, Settings }
+public enum AppPage { Dashboard, Institutions, Accounts, Transactions, Budget, Reports, Advisor, Settings }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -176,9 +179,16 @@ public sealed partial class MainViewModel : ObservableObject
         AccountMergeService merge,
         ReportsViewModel reports,
         DashboardViewModel dashboard,
-        SettingsViewModel settings)
+        SettingsViewModel settings,
+        BudgetViewModel budget,
+        AdvisorViewModel advisor)
     {
         Reports = reports;
+        Budget = budget;
+        Advisor = advisor;
+        Reports.ShowTransactions = ShowTransactionsAsync;
+        Budget.OpenReport = () => { Reports.SelectedReportIndex = ReportsViewModel.BudgetTab; CurrentPage = AppPage.Reports; };
+        Budget.TargetsChanged += () => ReportsNeedRefresh = true;
         Dashboard = dashboard;
         Settings = settings;
         _institutions = institutions;
@@ -200,6 +210,10 @@ public sealed partial class MainViewModel : ObservableObject
     public TransactionImportService ImportService => _importService;
     public AccountMergeService MergeService => _merge;
     public ReportsViewModel Reports { get; }
+    public BudgetViewModel Budget { get; }
+    public AdvisorViewModel Advisor { get; }
+    /// <summary>Set whenever data changed; the Budget page reloads on next activation.</summary>
+    public bool BudgetNeedsRefresh { get; set; } = true;
 
     /// <summary>Accounts currently flagged as probable duplicates (a reconnect that re-issued provider ids).</summary>
     [ObservableProperty] private int _possibleDuplicateCount;
@@ -227,6 +241,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (page == AppPage.Dashboard && DashboardNeedsRefresh) { DashboardNeedsRefresh = false; await Dashboard.LoadAsync(); }
             if (page == AppPage.Reports && ReportsNeedRefresh) { ReportsNeedRefresh = false; await Reports.LoadAllAsync(); }
+            if (page == AppPage.Budget && BudgetNeedsRefresh) { BudgetNeedsRefresh = false; await Budget.LoadAsync(); }
         }
         catch (Exception ex) { StatusMessage = ex.Message; }
     }
@@ -236,6 +251,26 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand] private void GoAccounts() => CurrentPage = AppPage.Accounts;
     [RelayCommand] private void GoTransactions() => CurrentPage = AppPage.Transactions;
     [RelayCommand] private void GoReports() => CurrentPage = AppPage.Reports;
+    [RelayCommand] private void GoBudget() => CurrentPage = AppPage.Budget;
+    [RelayCommand] private void GoAdvisor() => CurrentPage = AppPage.Advisor;
+
+    /// <summary>
+    /// Opens the Transactions page filtered to a category (a group also matches its sub-categories; null = every
+    /// category) and a date range, clearing the other filters. Used by the reports' drill-throughs.
+    /// </summary>
+    public async Task ShowTransactionsAsync(long? categoryId, DateOnly from, DateOnly to)
+    {
+        _filterText = ""; OnPropertyChanged(nameof(FilterText));
+        _filterFrom = from.ToDateTime(TimeOnly.MinValue); OnPropertyChanged(nameof(FilterFrom));
+        _filterTo = to.ToDateTime(TimeOnly.MinValue); OnPropertyChanged(nameof(FilterTo));
+        _filterCategory = FilterCategoryOptions.FirstOrDefault(o => o.Id == categoryId) ?? FilterCategoryOptions[0];
+        OnPropertyChanged(nameof(FilterCategory));
+        _filterType = TypeFilterOption.All; OnPropertyChanged(nameof(FilterType));
+        RebuildAccountFilterOptions();
+        PageIndex = 0;
+        CurrentPage = AppPage.Transactions;
+        await LoadTransactionsAsync();
+    }
     [RelayCommand] private void GoSettings() => CurrentPage = AppPage.Settings;
 
     /// <summary>Jump to a specific report tab (0 net worth, 1 income vs expenses, 2 spending, 3 balances by type).</summary>
@@ -291,6 +326,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         ReportsNeedRefresh = true;
         DashboardNeedsRefresh = true;
+        BudgetNeedsRefresh = true;
+        if (CurrentPage == AppPage.Budget) _ = OnPageActivatedAsync(AppPage.Budget);
         if (CurrentPage == AppPage.Dashboard) _ = OnPageActivatedAsync(AppPage.Dashboard);
         if (CurrentPage == AppPage.Reports) _ = OnPageActivatedAsync(AppPage.Reports);
     }
@@ -590,8 +627,10 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task RemoveSelectedAsync()
     {
         if (SelectedInstitution is null) return;
-        await _institutionService.RemoveAsync(SelectedInstitution.Id);
-        StatusMessage = $"Removed {SelectedInstitution.Name} and all of its data.";
+        var returned = await _institutionService.RemoveAsync(SelectedInstitution.Id);
+        StatusMessage = returned > 0
+            ? $"Removed {SelectedInstitution.Name}. {returned} account(s) it had taken over went back to their earlier connection with their history."
+            : $"Removed {SelectedInstitution.Name} and all of its data.";
         await RefreshAsync();
     }
 

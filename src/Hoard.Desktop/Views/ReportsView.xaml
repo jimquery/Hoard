@@ -3,6 +3,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+  <UserControl.Resources>
+    <Style x:Key="Tile" TargetType="ui:Card">
+      <Setter Property="Margin" Value="0,0,12,0"/>
+      <Setter Property="Padding" Value="16,10"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+    </Style>
+    <Style x:Key="TileValue" TargetType="TextBlock" BasedOn="{StaticResource KpiValue}">
+      <Setter Property="FontSize" Value="22"/>
+    </Style>
+    <Style x:Key="ChartCard" TargetType="ui:Card">
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style x:Key="CardTitle" TargetType="TextBlock" BasedOn="{StaticResource SectionTitle}">
+      <Setter Property="Margin" Value="2,0,0,4"/>
+    </Style>
+  </UserControl.Resources>
+
   <Grid Style="{StaticResource PagePanel}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto"/>
@@ -21,52 +41,109 @@
     </DockPanel>
 
     <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedReportIndex}">
-      <!-- Net worth -->
+      <!-- ============================== Net worth ============================== -->
       <TabItem Header="Net worth">
         <DockPanel Margin="0,8,0,0">
+          <UniformGrid DockPanel.Dock="Top" Columns="4" Margin="0,0,-12,10">
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Net worth" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding NetWorthNow, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Change over range" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding NetWorthChange, StringFormat='+$#,##0;-$#,##0;$0'}" Style="{StaticResource TileValue}"
+                           Foreground="{Binding NetWorthChange, Converter={StaticResource AmountToBrush}}"/>
+                <TextBlock Text="{Binding NetWorthChangeDetail}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Assets" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding AssetsNow, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Liabilities" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding LiabilitiesNow, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+          </UniformGrid>
           <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
             <TextBlock Text="Range" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
             <ComboBox ItemsSource="{Binding RangeOptions}" SelectedItem="{Binding SelectedRange}" Width="140" Margin="0,0,16,0"/>
             <CheckBox Content="Break down assets by account type" IsChecked="{Binding BreakDownByType}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-            <CheckBox Content="Include estimated history (before first sync)" IsChecked="{Binding IncludeEstimated}" VerticalAlignment="Center"/>
+            <CheckBox Content="Include estimated history (before first sync)" IsChecked="{Binding IncludeEstimated}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <ui:Button Content="Reset zoom" Icon="{ui:SymbolIcon ZoomFit24}" Command="{Binding ResetNetWorthZoomCommand}" Appearance="Transparent"/>
           </WrapPanel>
-          <TextBlock DockPanel.Dock="Top" Text="{Binding NetWorthHeadline}" Style="{StaticResource Headline}"/>
           <TextBlock DockPanel.Dock="Bottom" Text="{Binding NetWorthNote}" Style="{StaticResource Note}" Margin="0,6,0,0"/>
-          <ui:Card Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
+          <ui:Card Style="{StaticResource ChartCard}">
             <lvc:CartesianChart Series="{Binding NetWorthSeries}" XAxes="{Binding NetWorthXAxes}" YAxes="{Binding NetWorthYAxes}"
-                                LegendPosition="Bottom" TooltipPosition="Top" MinHeight="260"/>
+                                ZoomMode="X" FindingStrategy="CompareOnlyX" LegendPosition="Bottom" TooltipPosition="Top" MinHeight="260"/>
           </ui:Card>
         </DockPanel>
       </TabItem>
 
-      <!-- Income vs expenses -->
+      <!-- ============================== Income vs. expenses ============================== -->
       <TabItem Header="Income vs. expenses">
         <DockPanel Margin="0,8,0,0">
+          <UniformGrid DockPanel.Dock="Top" Columns="3" Margin="0,0,-12,10">
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Average monthly income" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding AverageIncome, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Average monthly expenses" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding AverageExpense, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Savings rate" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding SavingsRate, StringFormat=P0, TargetNullValue='—'}" Style="{StaticResource TileValue}"
+                           Foreground="{Binding SavingsRate, Converter={StaticResource AmountToBrush}}"/>
+                <TextBlock Text="{Binding SavingsDetail}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+          </UniformGrid>
           <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
             <TextBlock Text="Show last" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
             <ComboBox ItemsSource="{Binding IncomeRangeOptions}" SelectedItem="{Binding SelectedIncomeRange}" Width="140"/>
           </WrapPanel>
           <TextBlock DockPanel.Dock="Top" Text="{Binding IncomeNote}" Style="{StaticResource Note}"/>
           <Grid>
-            <Grid.RowDefinitions>
-              <RowDefinition Height="3*"/>
-              <RowDefinition Height="8"/>
-              <RowDefinition Height="2*"/>
-            </Grid.RowDefinitions>
-            <ui:Card Grid.Row="0" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="3*"/>
+              <ColumnDefinition Width="8"/>
+              <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <ui:Card Grid.Column="0" Style="{StaticResource ChartCard}">
               <lvc:CartesianChart Series="{Binding IncomeSeries}" XAxes="{Binding IncomeXAxes}" YAxes="{Binding IncomeYAxes}"
-                                  LegendPosition="Bottom" TooltipPosition="Top" MinHeight="260"/>
+                                  FindingStrategy="CompareOnlyX" LegendPosition="Bottom" TooltipPosition="Top" MinHeight="260" Cursor="Hand"/>
             </ui:Card>
-            <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
-            <ui:Card Grid.Row="2" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
-              <DataGrid ItemsSource="{Binding IncomeRows}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
-                        HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
+            <ui:Card Grid.Column="2" Style="{StaticResource ChartCard}">
+              <DataGrid ItemsSource="{Binding IncomeRows}" SelectedItem="{Binding SelectedIncomeRow}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                        HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" MouseDoubleClick="OnIncomeRowDoubleClick"
+                        ToolTip="Double-click a month to see its spending">
                 <DataGrid.Columns>
                   <DataGridTextColumn Header="Month" Binding="{Binding Month}" Width="*"/>
-                  <DataGridTextColumn Header="Income" Binding="{Binding Income, StringFormat=C0}" Width="120" ElementStyle="{StaticResource RightCell}"/>
-                  <DataGridTextColumn Header="Expenses" Binding="{Binding Expense, StringFormat=C0}" Width="120" ElementStyle="{StaticResource RightCell}"/>
-                  <DataGridTextColumn Header="Net" Binding="{Binding Net, StringFormat=C0}" Width="120" ElementStyle="{StaticResource RightCell}"/>
-                  <DataGridTextColumn Header="Uncategorized" Binding="{Binding Uncategorized, StringFormat=C0}" Width="120" ElementStyle="{StaticResource RightCell}"/>
+                  <DataGridTextColumn Header="Income" Binding="{Binding Income, StringFormat=C0}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                  <DataGridTextColumn Header="Expenses" Binding="{Binding Expense, StringFormat=C0}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                  <DataGridTemplateColumn Header="Net" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Net, StringFormat=C0}" HorizontalAlignment="Right" Foreground="{Binding Net, Converter={StaticResource AmountToBrush}}"/>
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="Saved" Binding="{Binding SavingsRate, StringFormat=P0}" Width="60" ElementStyle="{StaticResource RightCell}"/>
                 </DataGrid.Columns>
               </DataGrid>
             </ui:Card>
@@ -74,15 +151,34 @@
         </DockPanel>
       </TabItem>
 
-      <!-- Spending -->
-      <TabItem Header="Spending by category">
+      <!-- ============================== Spending ============================== -->
+      <TabItem Header="Spending">
         <DockPanel Margin="0,8,0,0">
+          <UniformGrid DockPanel.Dock="Top" Columns="3" Margin="0,0,-12,10">
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="{Binding SelectedMonth.Label, StringFormat='Spent in {0}'}" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding SpentThisMonth, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Same month last year" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding SpentPriorYear, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+                <TextBlock Text="{Binding SpendingChangeText}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Largest category group" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding TopGroupText}" Style="{StaticResource TileValue}" FontSize="18" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
+              </StackPanel>
+            </ui:Card>
+          </UniformGrid>
           <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
             <TextBlock Text="Month" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
             <ComboBox ItemsSource="{Binding MonthOptions}" SelectedItem="{Binding SelectedMonth}" DisplayMemberPath="Label" Width="180" Margin="0,0,16,0"/>
-            <CheckBox Content="Compare with the same month last year" IsChecked="{Binding CompareWithPriorYear}" VerticalAlignment="Center"/>
           </WrapPanel>
-          <TextBlock DockPanel.Dock="Top" Text="{Binding SpendingHeadline}" Style="{StaticResource Headline}"/>
           <TextBlock DockPanel.Dock="Top" Text="{Binding SpendingNote}" Style="{StaticResource Note}"/>
           <Grid>
             <Grid.RowDefinitions>
@@ -90,11 +186,11 @@
               <RowDefinition Height="8"/>
               <RowDefinition Height="3*"/>
             </Grid.RowDefinitions>
-            <ui:Card Grid.Row="0" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
+            <ui:Card Grid.Row="0" Style="{StaticResource ChartCard}">
               <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="Last 12 months by category group" Style="{StaticResource Note}"/>
+                <TextBlock DockPanel.Dock="Top" Text="Last 12 months by category group" Style="{StaticResource CardTitle}"/>
                 <lvc:CartesianChart Series="{Binding SpendingTrendSeries}" XAxes="{Binding SpendingTrendXAxes}" YAxes="{Binding SpendingTrendYAxes}"
-                                    LegendPosition="Right" TooltipPosition="Top" MinHeight="220"/>
+                                    FindingStrategy="CompareOnlyX" LegendPosition="Right" TooltipPosition="Top" MinHeight="200" Cursor="Hand"/>
               </DockPanel>
             </ui:Card>
             <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
@@ -104,24 +200,150 @@
                 <ColumnDefinition Width="8"/>
                 <ColumnDefinition Width="*"/>
               </Grid.ColumnDefinitions>
-              <ui:Card Grid.Column="0" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
+              <ui:Card Grid.Column="0" Style="{StaticResource ChartCard}">
                 <DockPanel>
-                  <TextBlock DockPanel.Dock="Top" Text="Selected month by category group" Style="{StaticResource Note}"/>
-                  <lvc:CartesianChart Series="{Binding SpendingCompareSeries}" XAxes="{Binding SpendingCompareXAxes}" YAxes="{Binding SpendingCompareYAxes}"
-                                      LegendPosition="Bottom" TooltipPosition="Top" MinHeight="260"/>
+                  <DockPanel DockPanel.Dock="Top">
+                    <ui:Button DockPanel.Dock="Right" Content="All groups" Icon="{ui:SymbolIcon ArrowLeft24}" Command="{Binding ClearSpendingGroupCommand}" Appearance="Transparent"
+                               Visibility="{Binding HasSelectedGroup, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="{Binding SpendingDetailTitle}" Style="{StaticResource CardTitle}" TextWrapping="Wrap"/>
+                  </DockPanel>
+                  <Grid>
+                    <lvc:PieChart Series="{Binding SpendingPieSeries}" LegendPosition="Right" TooltipPosition="Center" MinHeight="240" Cursor="Hand"
+                                  Visibility="{Binding HasSelectedGroup, Converter={StaticResource InverseBoolToVis}}"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding HasSelectedGroup, Converter={StaticResource BoolToVis}}">
+                      <lvc:CartesianChart Series="{Binding GroupDetailSeries}" XAxes="{Binding GroupDetailXAxes}" YAxes="{Binding GroupDetailYAxes}"
+                                          FindingStrategy="CompareOnlyY" LegendPosition="Bottom" TooltipPosition="Right" Height="{Binding GroupDetailHeight}"/>
+                    </ScrollViewer>
+                  </Grid>
                 </DockPanel>
               </ui:Card>
               <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
-              <ui:Card Grid.Column="2" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                <DataGrid ItemsSource="{Binding SpendingRows}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+              <ui:Card Grid.Column="2" Style="{StaticResource ChartCard}">
+                <DockPanel>
+                  <DockPanel DockPanel.Dock="Top">
+                    <ui:Button DockPanel.Dock="Right" Content="Transactions" Icon="{ui:SymbolIcon Receipt24}" Command="{Binding OpenSpendingTransactionsCommand}" Appearance="Transparent"
+                               ToolTip="Open the selected category's (or this month's) transactions"/>
+                    <TextBlock Text="Categories" Style="{StaticResource CardTitle}"/>
+                  </DockPanel>
+                  <DataGrid ItemsSource="{Binding SpendingRows}" SelectedItem="{Binding SelectedSpendingRow}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                            HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" MouseDoubleClick="OnSpendingRowDoubleClick">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="120"/>
+                      <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*"/>
+                      <DataGridTextColumn Header="This month" Binding="{Binding Current, StringFormat=C0}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                      <DataGridTextColumn Header="Last year" Binding="{Binding Prior, StringFormat=C0}" Width="85" ElementStyle="{StaticResource RightCell}"/>
+                      <DataGridTemplateColumn Header="Change" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Change, StringFormat='+#,##0;-#,##0;0'}" HorizontalAlignment="Right"/>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                      <DataGridTextColumn Header="%" Binding="{Binding ChangePercent}" Width="50" ElementStyle="{StaticResource RightCell}"/>
+                    </DataGrid.Columns>
+                  </DataGrid>
+                </DockPanel>
+              </ui:Card>
+            </Grid>
+          </Grid>
+        </DockPanel>
+      </TabItem>
+
+      <!-- ============================== Budget vs. actual ============================== -->
+      <TabItem Header="Budget vs. actual">
+        <DockPanel Margin="0,8,0,0">
+          <UniformGrid DockPanel.Dock="Top" Columns="4" Margin="0,0,-12,10">
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Monthly target" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding BudgetTarget, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Spent (groups with a target)" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding BudgetActual, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+                <TextBlock Text="{Binding BudgetActualDetail}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Projected month end" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding BudgetProjected, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+                <TextBlock Text="{Binding BudgetProjectedDetail}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+            <ui:Card Style="{StaticResource Tile}">
+              <StackPanel>
+                <TextBlock Text="Groups over target" Style="{StaticResource KpiLabel}"/>
+                <TextBlock Text="{Binding BudgetGroupsOver}" Style="{StaticResource TileValue}"/>
+                <TextBlock Text="{Binding BudgetGroupsDetail}" Style="{StaticResource KpiDetail}"/>
+              </StackPanel>
+            </ui:Card>
+          </UniformGrid>
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+            <TextBlock Text="Month" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+            <ComboBox ItemsSource="{Binding MonthOptions}" SelectedItem="{Binding SelectedBudgetMonth}" DisplayMemberPath="Label" Width="180" Margin="0,0,16,0"/>
+          </WrapPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding BudgetNote}" Style="{StaticResource Note}"/>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="8"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <ui:Card Grid.Column="0" Style="{StaticResource ChartCard}">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Target vs. actual by category group" Style="{StaticResource CardTitle}"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <lvc:CartesianChart Series="{Binding BudgetSeries}" XAxes="{Binding BudgetXAxes}" YAxes="{Binding BudgetYAxes}"
+                                      FindingStrategy="CompareOnlyY" LegendPosition="Top" TooltipPosition="Right" Height="{Binding BudgetChartHeight}" Cursor="Hand"/>
+                </ScrollViewer>
+              </DockPanel>
+            </ui:Card>
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
+            <Grid Grid.Column="2">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+              <ui:Card Grid.Row="0" Style="{StaticResource ChartCard}">
+                <DockPanel>
+                  <DockPanel DockPanel.Dock="Top">
+                    <ui:Button DockPanel.Dock="Right" Content="All groups" Icon="{ui:SymbolIcon ArrowLeft24}" Command="{Binding ShowAllBudgetHistoryCommand}" Appearance="Transparent"/>
+                    <TextBlock Text="{Binding BudgetHistoryTitle}" Style="{StaticResource CardTitle}" TextWrapping="Wrap"/>
+                  </DockPanel>
+                  <lvc:CartesianChart Series="{Binding BudgetHistorySeries}" XAxes="{Binding BudgetHistoryXAxes}" YAxes="{Binding BudgetHistoryYAxes}"
+                                      FindingStrategy="CompareOnlyX" LegendPosition="Bottom" TooltipPosition="Top" MinHeight="200"/>
+                </DockPanel>
+              </ui:Card>
+              <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent"/>
+              <ui:Card Grid.Row="2" Style="{StaticResource ChartCard}">
+                <DataGrid ItemsSource="{Binding BudgetRows}" SelectedItem="{Binding SelectedBudgetRow}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0"
+                          SelectionChanged="OnBudgetRowSelected" MouseDoubleClick="OnBudgetRowDoubleClick">
                   <DataGrid.Columns>
-                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="130"/>
-                    <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*"/>
-                    <DataGridTextColumn Header="This month" Binding="{Binding Current, StringFormat=C0}" Width="95" ElementStyle="{StaticResource RightCell}"/>
-                    <DataGridTextColumn Header="Last year" Binding="{Binding Prior, StringFormat=C0}" Width="95" ElementStyle="{StaticResource RightCell}"/>
-                    <DataGridTextColumn Header="Change" Binding="{Binding Change, StringFormat='+#,##0;-#,##0;0'}" Width="80" ElementStyle="{StaticResource RightCell}"/>
-                    <DataGridTextColumn Header="%" Binding="{Binding ChangePercent}" Width="55" ElementStyle="{StaticResource RightCell}"/>
+                    <DataGridTemplateColumn Header="" Width="20">
+                      <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                          <Ellipse Width="9" Height="9" Fill="{Binding Status, Converter={StaticResource BudgetStatusBrush}}" ToolTip="{Binding StatusText}"/>
+                        </DataTemplate>
+                      </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="*"/>
+                    <DataGridTextColumn Header="Target" Binding="{Binding Target, StringFormat=C0}" Width="80" ElementStyle="{StaticResource RightCell}"/>
+                    <DataGridTextColumn Header="Actual" Binding="{Binding Actual, StringFormat=C0}" Width="80" ElementStyle="{StaticResource RightCell}"/>
+                    <DataGridTextColumn Header="Projected" Binding="{Binding Projected, StringFormat=C0}" Width="80" ElementStyle="{StaticResource RightCell}"/>
+                    <DataGridTemplateColumn Header="Left" Width="80">
+                      <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                          <TextBlock Text="{Binding Variance, StringFormat='+#,##0;-#,##0;0'}" HorizontalAlignment="Right"
+                                     Foreground="{Binding Variance, Converter={StaticResource AmountToBrush}}"/>
+                        </DataTemplate>
+                      </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Used" Binding="{Binding Used, StringFormat=P0}" Width="60" ElementStyle="{StaticResource RightCell}"/>
                   </DataGrid.Columns>
                 </DataGrid>
               </ui:Card>

@@ -125,6 +125,8 @@ public sealed class CategorySpend
 public sealed class MonthGroupSpend
 {
     public DateOnly Month { get; init; }
+    /// <summary>The top-level category (or the category itself when it has no parent); null for uncategorized.</summary>
+    public long? GroupId { get; init; }
     public string GroupName { get; init; } = "";
     public decimal Amount { get; init; }
 }

@@ -94,7 +94,7 @@ public sealed class DuplicateAccountSyncTests
     private readonly FakeCategoryRepository _categories = new();
 
     private SyncService Sync() =>
-        new(_institutions, _accounts, _transactions, _runs, _vault,
+        new(_institutions, _accounts, _transactions, _runs, new FakeAccountHandoverRepository(_accounts, _transactions, _institutions), _vault,
             new CategorizationService(_categories, _transactions, NullLogger<CategorizationService>.Instance),
             [_provider], new SyncSettings { InitialHistoryDays = 90, IncrementalOverlapDays = 7 }, NullLogger<SyncService>.Instance);
 

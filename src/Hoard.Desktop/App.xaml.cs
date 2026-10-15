@@ -71,6 +71,8 @@ public partial class App : Application
         services.AddSingleton<ReportsViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<BudgetViewModel>();
+        services.AddSingleton<AdvisorViewModel>();
         services.AddSingleton<MainViewModel>();
         return services.BuildServiceProvider();
     }

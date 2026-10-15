@@ -4,7 +4,7 @@ A personal financial aggregator for Windows, in the spirit of Mint or Rocket Mon
 matters: **everything stays on your PC.** Hoard downloads your accounts and transactions into a MySQL database on
 your own machine, categorizes them with rules you control, and turns them into net-worth, spending and
 subscription reports. There is no cloud account and no telemetry; the only outbound requests are to the data
-providers you connect.
+providers you connect (and, only if you turn it on, to Anthropic for the AI Advisor).
 
 <p align="center"><img src="docs/icon/hoard-source.png" width="160" alt="Hoard icon"></p>
 
@@ -12,12 +12,14 @@ providers you connect.
 
 | | |
 |---|---|
-| **Bank & brokerage sync** | Accounts, balances and transactions through [SimpleFIN Bridge](https://bridge.simplefin.org/); incremental, duplicate-free, refreshed every four hours by a Windows service. Bank passwords never enter Hoard. |
+| **Bank & brokerage sync** | Accounts, balances and transactions through [SimpleFIN Bridge](https://bridge.simplefin.org/) or [Plaid](https://plaid.com/); incremental, duplicate-free, refreshed every four hours by a Windows service. Bank passwords never enter Hoard. A Plaid bank can take over accounts Hoard already has from SimpleFIN, keeping their history. |
 | **Real estate** | Properties valued automatically by [RentCast](https://www.rentcast.io/) (free plan) or by a figure you enter, with a value history, counted in net worth. |
 | **CSV import** | Years of history from an Empower export, mapped to your accounts and categories, de-duplicated against the bank feed, safe to re-import. |
 | **Categories & rules** | A two-level category tree, ~200 built-in rules plus your own (contains / starts-with / exact / regex, amount and account scopes), learn-from-edit, and manual choices that rules never override. |
 | **Duplicate-account merge** | A bank reconnected at SimpleFIN re-issues account ids; Hoard flags the second copies and merges them into the originals, history and settings intact. |
-| **Reports** | Net worth over time (stacked by account type, with estimated history), income vs. expenses, spending by category with prior-year comparison, balances by type, college-savings projections per child, and a **Subscriptions** report that finds recurring charges and what they cost per year. |
+| **Budgeting** | Monthly targets by category group with forecasts from the last 12 months (robust to one-off spikes, following steady trends), a likely range, month-end projections and on-track / at-risk / over status; target history so past months are judged against the target of the time. |
+| **Reports** | Interactive, theme-aware charts with drill-down: net worth over time (zoom and pan, stacked by account type, with estimated history), income vs. expenses with savings rate, spending by group and category with prior-year comparison, **budget vs. actual**, balances by type, college-savings projections per child, and a **Subscriptions** report that finds recurring charges and what they cost per year. Click through from a chart to the transactions behind it. |
+| **AI Advisor** (opt-in) | Ask Claude for a financial check-up, spending cuts, budget and subscription reviews, or net-worth advice. Claude reads your figures through Hoard's local tools and answers with specific, costed recommendations. Off until you enable it with your own Anthropic API key. |
 | **Household** | Members with dates of birth, account owners, an owner filter on the dashboard. |
 | **Shell** | Fluent (WPF-UI) desktop app with light/dark themes and your Windows accent colour; a demo database you can create in one click. |
 | **Security** | Provider keys sealed with AES-256-GCM under a DPAPI-protected data key; a least-privilege MySQL user with a generated password; a private MySQL server on its own port. |
@@ -50,12 +52,13 @@ repairing and the bring-your-own-database case: **[docs/INSTALL.md](docs/INSTALL
 
 ```
 SimpleFIN Bridge ──┐                      ┌── Hoard.Desktop  (WPF app: pages, reports, rule editor)
+Plaid ─────────────┤                      │
 RentCast AVM ──────┼──> Hoard.Core ──> MySQL ┤
 Empower CSV ───────┘    (sync, dedupe,     └── Hoard.Service  (Windows service: syncs on a timer)
                          rules, reports)
 ```
 
-- **`Hoard.Core`** is all of the logic and has no UI: providers (`IFinancialProvider` — SimpleFIN and Real estate
+- **`Hoard.Core`** is all of the logic and has no UI: providers (`IFinancialProvider` — SimpleFIN, Plaid and Real estate
   today), the sync engine with its three-layer transaction de-duplication, the categorization engine, the CSV
   importer, the duplicate-account detector and merge, the report queries, and the subscription detector. Data
   access is Dapper over MySqlConnector with plain SQL migrations embedded in the assembly and applied at start-up.
@@ -76,6 +79,9 @@ fingerprint as the fallback, so re-syncs, overlapping windows and imports never 
   your Windows password; the trade-off is that an administrator-level process on the PC could decrypt Hoard's keys.
   A source build you set up by hand uses the **user** scope, tied to your Windows account, and the installer leaves
   such a configuration untouched.
+- The **AI Advisor** is off by default. Turned on, it sends your questions and the figures Claude looks up (balances,
+  cash flow, category totals, budget and, if allowed, merchants and individual transactions; never account numbers or
+  logins) to Anthropic's API using your own key, which is sealed like the provider keys.
 - The `hoard` MySQL user has rights on the `hoard` schema only, from `localhost` only, on a server bound to
   `127.0.0.1:3307`. Transaction data at rest is protected by MySQL's access control; enabling InnoDB tablespace
   encryption is recommended.
@@ -118,8 +124,7 @@ changes.
 
 ## Roadmap
 
-Venmo/PayPal CSV imports and Amazon order-line detail, an ignore list for the Subscriptions report, Plaid as a
-second provider, budgets, transfer matching, split transactions and tags, investment holdings, multi-currency,
+Venmo/PayPal CSV imports and Amazon order-line detail, an ignore list for the Subscriptions report, transfer matching, split transactions and tags, investment holdings, multi-currency,
 encrypted backup, an optional lock on launch, and a code-signed installer.
 
 ## License

@@ -22,6 +22,10 @@ public sealed record SyncResult(long InstitutionId, SyncStatus Status, int Accou
 /// (<see cref="Account.PossibleDuplicateOf"/>) rather than merged here — the service runs unattended and merging is
 /// irreversible — and the desktop offers the merge. Flagging keeps the data: the new row's transactions are folded
 /// into the survivor when the user merges.
+///
+/// Accounts can also change connection on purpose (<see cref="AccountHandover"/>, e.g. a SimpleFIN account linked to
+/// Plaid): the old connection skips the provider account it handed over, and the new connection's download is matched
+/// against the history the account already had (<see cref="HandoverMatcher"/>) so the overlap is not duplicated.
 /// </summary>
 public sealed class SyncService
 {
@@ -29,6 +33,7 @@ public sealed class SyncService
     private readonly IAccountRepository _accounts;
     private readonly ITransactionRepository _transactions;
     private readonly ISyncRunRepository _runs;
+    private readonly IAccountHandoverRepository _handovers;
     private readonly CredentialVault _vault;
     private readonly CategorizationService _categorization;
     private readonly IReadOnlyDictionary<ProviderKind, IFinancialProvider> _providers;
@@ -40,6 +45,7 @@ public sealed class SyncService
         IAccountRepository accounts,
         ITransactionRepository transactions,
         ISyncRunRepository runs,
+        IAccountHandoverRepository handovers,
         CredentialVault vault,
         CategorizationService categorization,
         IEnumerable<IFinancialProvider> providers,
@@ -50,6 +56,7 @@ public sealed class SyncService
         _accounts = accounts;
         _transactions = transactions;
         _runs = runs;
+        _handovers = handovers;
         _vault = vault;
         _categorization = categorization;
         _providers = providers.ToDictionary(p => p.Kind);
@@ -90,16 +97,28 @@ public sealed class SyncService
                 ?? throw new ProviderException("No credentials stored for this institution.", isAuthFailure: true);
             var credentialJson = await _vault.OpenAsync(institutionId, sealedCred, ct);
 
-            var request = await BuildFetchRequestAsync(institutionId, ct);
+            var request = await BuildFetchRequestAsync(inst, ct);
             var set = await provider.FetchAsync(credentialJson, request, ct);
 
             // Snapshot of the accounts that existed before this run, so a new provider id can be spotted and compared.
             var existing = await _accounts.ListAllAsync(ct);
             var knownExternalIds = existing.Where(a => a.InstitutionId == institutionId).Select(a => a.ExternalId).ToHashSet(StringComparer.Ordinal);
 
+            // Provider accounts this connection handed to another one, and the latest handover of each account it received.
+            var handovers = await _handovers.ListAsync(ct);
+            var handedAway = handovers.Where(h => h.PreviousInstitutionId == institutionId && h.PreviousExternalId is not null)
+                                      .Select(h => h.PreviousExternalId!).ToHashSet(StringComparer.Ordinal);
+            var latestHandover = handovers.GroupBy(h => h.AccountId)
+                                          .ToDictionary(g => g.Key, g => g.OrderBy(h => h.HandedOverAtUtc).ThenBy(h => h.Id).Last());
+
             foreach (var pa in set.Accounts)
             {
                 ct.ThrowIfCancellationRequested();
+                if (handedAway.Contains(pa.ExternalId) && !knownExternalIds.Contains(pa.ExternalId))
+                {
+                    _log.LogDebug("Sync for {Institution} skipped account {ExternalId}: it was handed over to another connection", inst.Name, pa.ExternalId);
+                    continue;
+                }
                 var account = new Account
                 {
                     InstitutionId = institutionId,
@@ -134,6 +153,9 @@ public sealed class SyncService
                     Balance = pa.Balance,
                     AvailableBalance = pa.AvailableBalance,
                 }, ct);
+
+                if (latestHandover.TryGetValue(accountId, out var handover))
+                    await AdoptHandedOverHistoryAsync(accountId, handover, pa.Transactions, ct);
 
                 var livePending = new List<string>();
                 foreach (var pt in pa.Transactions)
@@ -187,9 +209,29 @@ public sealed class SyncService
         return new SyncResult(institutionId, run.Status, run.AccountsSeen, run.TransactionsAdded, run.TransactionsUpdated, run.Error, possibleDuplicates);
     }
 
-    private async Task<FetchRequest> BuildFetchRequestAsync(long institutionId, CancellationToken ct)
+    /// <summary>
+    /// Lets rows the account had before its handover take over the ids of the same transactions in the new download,
+    /// so the upsert that follows updates them instead of inserting copies.
+    /// </summary>
+    private async Task AdoptHandedOverHistoryAsync(long accountId, AccountHandover handover, IReadOnlyList<ProviderTransaction> incoming, CancellationToken ct)
     {
-        var latest = await _transactions.GetLatestPostedAsync(institutionId, ct);
+        if (handover.HistoryCutoffUtc is not { } cutoff || incoming.Count == 0) return;
+        var window = AccountMergeService.DedupeWindowDays;
+        var first = incoming.Min(t => t.PostedAtUtc).Date;
+        if (first > cutoff.Date.AddDays(window)) return; // the download is all newer than the handover
+        var stored = await _transactions.ListForHandoverAsync(accountId, first.AddDays(-window), cutoff.Date.AddDays(2 * window + 1), ct);
+        var matches = HandoverMatcher.Match(incoming, stored, handover, window);
+        foreach (var m in matches)
+            await _transactions.AdoptExternalIdAsync(m.TransactionId, m.ExternalId, ct);
+        if (matches.Count > 0)
+            _log.LogInformation("Matched {Count} downloaded transaction(s) of account {AccountId} to history it had before its handover", matches.Count, accountId);
+    }
+
+    private async Task<FetchRequest> BuildFetchRequestAsync(Institution inst, CancellationToken ct)
+    {
+        // A connection's first sync asks for the full initial history even when it took over accounts that already have
+        // some: its other accounts are new, and the handed-over ones are matched rather than duplicated.
+        var latest = inst.LastSyncAtUtc is null ? null : await _transactions.GetLatestPostedAsync(inst.Id, ct);
         var start = latest is { } l
             ? l.AddDays(-_settings.IncrementalOverlapDays)
             : DateTime.UtcNow.AddDays(-_settings.InitialHistoryDays);

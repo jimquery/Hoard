@@ -20,8 +20,12 @@ public sealed class SyncServiceTests
     private readonly FakeCategoryRepository _categories = new();
     private readonly SyncSettings _settings = new() { InitialHistoryDays = 90, IncrementalOverlapDays = 7 };
 
+    private readonly FakeAccountHandoverRepository _handovers;
+
+    public SyncServiceTests() => _handovers = new(_accounts, _transactions, _institutions);
+
     private SyncService CreateSut() =>
-        new(_institutions, _accounts, _transactions, _runs, _vault,
+        new(_institutions, _accounts, _transactions, _runs, _handovers, _vault,
             new CategorizationService(_categories, _transactions, NullLogger<CategorizationService>.Instance),
             [_provider], _settings, NullLogger<SyncService>.Instance);
 

@@ -8,7 +8,9 @@ public enum ProviderKind
     RealEstate = 2,
     /// <summary>The synthetic "Imported" institution holding history-only accounts created by a CSV import; never synced.</summary>
     Imported = 3,
-    // Future: Plaid = 4, OfxDirectConnect = 5, ...
+    /// <summary>One Plaid Item (a bank login linked through Plaid Link).</summary>
+    Plaid = 4,
+    // Future: OfxDirectConnect = 5, ...
 }
 
 public enum SyncStatus
@@ -27,7 +29,7 @@ public enum AccountKind
     Liability = 2,
 }
 
-/// <summary>A connection to a financial institution (e.g. one SimpleFIN access token).</summary>
+/// <summary>A connection to a financial institution (e.g. one SimpleFIN access token or one Plaid Item).</summary>
 public sealed class Institution
 {
     public long Id { get; set; }
@@ -105,8 +107,30 @@ public sealed class Transaction
     public CategorySource CategorySource { get; set; } = CategorySource.None;
     public long? CategoryRuleId { get; set; }
     public string? Notes { get; set; }
+    /// <summary>
+    /// The previous provider's id when this row came from an account's old connection and the new one (after a
+    /// handover) matched it and took it over; see <see cref="AccountHandover"/>.
+    /// </summary>
+    public string? AdoptedFromExternalId { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
+}
+
+/// <summary>
+/// An account moved from one connection to another (e.g. linked from SimpleFIN to Plaid) without losing its row.
+/// The old connection skips <see cref="PreviousExternalId"/> from then on; the new connection's first downloads are
+/// matched against the rows that existed at <see cref="HandedOverAtUtc"/> rather than duplicating them.
+/// </summary>
+public sealed class AccountHandover
+{
+    public long Id { get; set; }
+    public long AccountId { get; set; }
+    /// <summary>Null for a hand-back (the account returned to its earlier connection), or when that connection was removed.</summary>
+    public long? PreviousInstitutionId { get; set; }
+    public string? PreviousExternalId { get; set; }
+    public DateTime HandedOverAtUtc { get; set; }
+    /// <summary>Latest posted transaction the account had at the handover; null when it had none.</summary>
+    public DateTime? HistoryCutoffUtc { get; set; }
 }
 
 /// <summary>How a transaction got its category. Manual assignments are never overwritten by rules.</summary>

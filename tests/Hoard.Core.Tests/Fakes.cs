@@ -119,6 +119,7 @@ public sealed class FakeTransactionRepository : ITransactionRepository
 
     public Task<UpsertOutcome> UpsertAsync(Transaction t, CancellationToken ct = default)
     {
+        if (t.CreatedAtUtc == default) t.CreatedAtUtc = DateTime.UtcNow;
         if (t.ExternalId is null)
         {
             if (Items.Any(x => x.AccountId == t.AccountId && x.Fingerprint == t.Fingerprint)) return Task.FromResult(UpsertOutcome.Unchanged);
@@ -164,6 +165,66 @@ public sealed class FakeTransactionRepository : ITransactionRepository
 
     public Task<int> DeleteStalePendingAsync(long accountId, IReadOnlyCollection<string> livePendingExternalIds, CancellationToken ct = default) =>
         Task.FromResult(Items.RemoveAll(t => t.AccountId == accountId && t.IsPending && (t.ExternalId is null || !livePendingExternalIds.Contains(t.ExternalId))));
+
+    public Task<IReadOnlyList<HandoverTransactionRow>> ListForHandoverAsync(long accountId, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<HandoverTransactionRow>>(Items
+            .Where(t => t.AccountId == accountId && t.PostedAtUtc >= fromUtc && t.PostedAtUtc < toUtc)
+            .Select(t => new HandoverTransactionRow { Id = t.Id, ExternalId = t.ExternalId, PostedAtUtc = t.PostedAtUtc, Amount = t.Amount, Description = t.Description, CreatedAtUtc = t.CreatedAtUtc, AdoptedFromExternalId = t.AdoptedFromExternalId })
+            .ToList());
+
+    public Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
+    {
+        var t = Items.First(x => x.Id == transactionId);
+        t.AdoptedFromExternalId ??= t.ExternalId ?? "";
+        t.ExternalId = externalId;
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>In-memory stand-in for the handover SQL, working on the fake account and transaction lists.</summary>
+public sealed class FakeAccountHandoverRepository(FakeAccountRepository accounts, FakeTransactionRepository transactions, FakeInstitutionRepository institutions) : IAccountHandoverRepository
+{
+    public List<AccountHandover> Items { get; } = new();
+
+    public Task<IReadOnlyList<AccountHandover>> ListAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<AccountHandover>>(Items.ToList());
+
+    public Task HandOverAsync(long accountId, Account identity, CancellationToken ct = default)
+    {
+        var a = accounts.Items.First(x => x.Id == accountId);
+        if (accounts.Items.Any(x => x.Id != accountId && x.InstitutionId == identity.InstitutionId && x.ExternalId == identity.ExternalId))
+            throw new InvalidOperationException("taken");
+        Items.Add(new AccountHandover
+        {
+            Id = Items.Count + 1, AccountId = accountId, PreviousInstitutionId = a.InstitutionId, PreviousExternalId = a.ExternalId,
+            HandedOverAtUtc = DateTime.UtcNow, HistoryCutoffUtc = LatestPosted(accountId),
+        });
+        a.InstitutionId = identity.InstitutionId; a.ExternalId = identity.ExternalId; a.Name = identity.Name; a.OrgName = identity.OrgName;
+        a.Balance = identity.Balance; a.AvailableBalance = identity.AvailableBalance; a.BalanceDateUtc = identity.BalanceDateUtc; a.PossibleDuplicateOf = null;
+        return Task.CompletedTask;
+    }
+
+    public Task<int> ReturnAccountsAsync(long institutionId, CancellationToken ct = default)
+    {
+        var returned = 0;
+        foreach (var a in accounts.Items.Where(x => x.InstitutionId == institutionId).ToList())
+        {
+            var h = Items.Where(x => x.AccountId == a.Id).OrderBy(x => x.HandedOverAtUtc).ThenBy(x => x.Id).LastOrDefault();
+            if (h?.PreviousInstitutionId is not { } prev || institutions.Items.All(i => i.Id != prev)) continue;
+            a.InstitutionId = prev; a.ExternalId = h.PreviousExternalId!;
+            foreach (var t in transactions.Items.Where(t => t.AccountId == a.Id && t.AdoptedFromExternalId is not null))
+            {
+                t.ExternalId = t.AdoptedFromExternalId == "" ? null : t.AdoptedFromExternalId;
+                t.AdoptedFromExternalId = null;
+            }
+            Items.Remove(h);
+            Items.Add(new AccountHandover { Id = Items.Count + 100, AccountId = a.Id, HandedOverAtUtc = DateTime.UtcNow, HistoryCutoffUtc = LatestPosted(a.Id) });
+            returned++;
+        }
+        return Task.FromResult(returned);
+    }
+
+    private DateTime? LatestPosted(long accountId) =>
+        transactions.Items.Where(t => t.AccountId == accountId && !t.IsPending).Select(t => (DateTime?)t.PostedAtUtc).DefaultIfEmpty(null).Max();
 }
 
 public sealed class FakeCategoryRepository : ICategoryRepository
@@ -200,9 +261,9 @@ public sealed class FakeSyncRunRepository : ISyncRunRepository
     public Task<IReadOnlyList<SyncRun>> ListRecentAsync(int limit = 50, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SyncRun>>(Runs.ToList());
 }
 
-public sealed class FakeProvider : IFinancialProvider
+public sealed class FakeProvider(ProviderKind kind = ProviderKind.SimpleFin) : IFinancialProvider
 {
-    public ProviderKind Kind => ProviderKind.SimpleFin;
+    public ProviderKind Kind => kind;
     public Func<FetchRequest, ProviderAccountSet> Response { get; set; } = _ => new ProviderAccountSet([], []);
     public List<FetchRequest> Requests { get; } = new();
     public string? LastCredentialJson { get; private set; }

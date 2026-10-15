@@ -210,16 +210,17 @@ public sealed class ReportRepository : IReportRepository
     public async Task<IReadOnlyList<MonthGroupSpend>> MonthlySpendingByGroupAsync(DateOnly fromMonth, DateOnly toMonthExclusive, CancellationToken ct = default)
     {
         using var c = await _f.OpenAsync(ct);
-        var rows = await c.QueryAsync<(DateTime Month, string GroupName, decimal Amount)>($"""
+        var rows = await c.QueryAsync<(DateTime Month, long? GroupId, string GroupName, decimal Amount)>($"""
             SELECT DATE(DATE_FORMAT(x.posted_at_utc, '%Y-%m-01')) AS month,
+                   x.group_id,
                    COALESCE(x.group_name, 'Uncategorized') AS group_name,
                    SUM(-x.amount) AS amount
               FROM ({CategorizedTransactions}) x
              WHERE x.kind = @expense OR (x.kind IS NULL AND x.amount < 0)
-             GROUP BY DATE(DATE_FORMAT(x.posted_at_utc, '%Y-%m-01')), COALESCE(x.group_name, 'Uncategorized')
+             GROUP BY DATE(DATE_FORMAT(x.posted_at_utc, '%Y-%m-01')), x.group_id, COALESCE(x.group_name, 'Uncategorized')
              ORDER BY month, amount DESC
             """, new { from = ToDateTime(fromMonth), to = ToDateTime(toMonthExclusive), expense = CategoryKind.Expense });
-        return rows.Select(r => new MonthGroupSpend { Month = DateOnly.FromDateTime(r.Month), GroupName = r.GroupName, Amount = r.Amount }).ToList();
+        return rows.Select(r => new MonthGroupSpend { Month = DateOnly.FromDateTime(r.Month), GroupId = r.GroupId, GroupName = r.GroupName, Amount = r.Amount }).ToList();
     }
 
     public async Task<IReadOnlyList<SpendingTransactionRow>> ListSpendingTransactionsAsync(DateTime fromUtc, CancellationToken ct = default)

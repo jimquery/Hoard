@@ -137,7 +137,9 @@ public sealed class FakeReportRepository : IReportRepository
     public Task<IReadOnlyList<MonthlyIncomeExpense>> MonthlyIncomeExpenseAsync(DateOnly fromMonth, DateOnly toMonthExclusive, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<MonthlyIncomeExpense>>(Monthly.Where(m => m.Month >= fromMonth && m.Month < toMonthExclusive).ToList());
     public Task<IReadOnlyList<CategorySpend>> SpendingByCategoryAsync(DateOnly monthStart, DateOnly monthEndExclusive, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<CategorySpend>>([]);
-    public Task<IReadOnlyList<MonthGroupSpend>> MonthlySpendingByGroupAsync(DateOnly fromMonth, DateOnly toMonthExclusive, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<MonthGroupSpend>>([]);
+    public List<MonthGroupSpend> Spend { get; } = new();
+    public Task<IReadOnlyList<MonthGroupSpend>> MonthlySpendingByGroupAsync(DateOnly fromMonth, DateOnly toMonthExclusive, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<MonthGroupSpend>>(Spend.Where(s => s.Month >= fromMonth && s.Month < toMonthExclusive).ToList());
     public List<SpendingTransactionRow> Spending { get; } = new();
     public Task<IReadOnlyList<SpendingTransactionRow>> ListSpendingTransactionsAsync(DateTime fromUtc, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<SpendingTransactionRow>>(Spending.Where(r => r.PostedAtUtc >= fromUtc).ToList());

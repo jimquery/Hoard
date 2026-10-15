@@ -175,7 +175,7 @@ public sealed class PropertyServiceTests
         var vault = new CredentialVault(new FakeDataKeyStore(), new InMemorySecretProtector());
         var provider = new RealEstateProvider(props, valuer, NullLogger<RealEstateProvider>.Instance);
         var transactions = new FakeTransactionRepository();
-        var sync = new SyncService(institutions, accounts, transactions, new FakeSyncRunRepository(), vault,
+        var sync = new SyncService(institutions, accounts, transactions, new FakeSyncRunRepository(), new FakeAccountHandoverRepository(accounts, transactions, institutions), vault,
             new Categorization.CategorizationService(new FakeCategoryRepository(), transactions, NullLogger<Categorization.CategorizationService>.Instance),
             [provider], new Configuration.SyncSettings(), NullLogger<SyncService>.Instance);
         var service = new PropertyService(props, institutions, accounts, vault, sync, provider);
