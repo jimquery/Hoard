@@ -1,0 +1,110 @@
+# Inferred by GeNĒ at onboarding. Kept by Ingenium Studio; change them through a request.
+request: REQ-0002
+title: Hoard personal finance aggregator
+summary: Hoard is a Windows desktop app that downloads a person's bank, brokerage and property data into a MySQL database on their own PC. It categorizes transactions with rules, tracks budgets, and produces net-worth, spending and subscription reports, with an optional AI advisor. A Windows service keeps the data synced in the background.
+classification:
+  level: sensitive
+  reason: It stores account balances, full transaction history, household member birth dates, and provider API keys (SimpleFIN, Plaid, RentCast, Anthropic) for a person's finances.
+requirements:
+  - id: R1
+    text: The user can connect financial institutions through SimpleFIN Bridge (setup token) or Plaid, and sync their accounts, balances and transactions.
+    priority: must
+    acceptance:
+      - Adding an institution with a valid setup token or Plaid link creates its accounts.
+      - Running a sync loads balances and transactions into the database.
+      - A failed sync is recorded with its error and does not corrupt existing data.
+  - id: R2
+    text: Re-syncing, overlapping date windows and imports never create duplicate transactions.
+    priority: must
+    acceptance:
+      - Syncing the same window twice leaves the transaction count unchanged.
+      - A transaction without a provider id is matched by a content fingerprint.
+  - id: R3
+    text: A background Windows service syncs all institutions automatically on a configurable interval (default every four hours).
+    priority: must
+    acceptance:
+      - With the service running, a sync happens after each interval without the desktop app open.
+      - Changing the interval in settings changes the cadence.
+  - id: R4
+    text: Provider keys and the AI key are stored encrypted, and the database password is protected by Windows DPAPI; bank passwords never enter the app.
+    priority: must
+    acceptance:
+      - Stored credential values in the database are ciphertext, not the plain keys.
+      - hoard.json holds no plain-text database password.
+  - id: R5
+    text: Transactions are categorized by a two-level category tree and built-in plus user-defined rules (contains, starts-with, exact, regex, with amount and account scopes); manual choices are never overridden by rules.
+    priority: must
+    acceptance:
+      - A matching rule assigns the category to new transactions.
+      - A transaction categorized by hand keeps its category after rules are re-applied.
+      - Editing a transaction's category can create a rule from it.
+  - id: R6
+    text: The user can import transaction history from an Empower CSV export, mapped to their accounts and categories, safely repeatable and de-duplicated against synced data.
+    priority: should
+    acceptance:
+      - Importing a CSV adds the transactions with mapped accounts and categories.
+      - Importing the same file again adds nothing.
+  - id: R7
+    text: Duplicate accounts created when a bank is reconnected are detected and can be merged into the original, keeping history and settings.
+    priority: should
+    acceptance:
+      - A second copy of an account is flagged as a duplicate.
+      - After merge, the original holds the combined history and the duplicate is gone.
+  - id: R8
+    text: A Plaid-connected bank can take over accounts already held from SimpleFIN while keeping their history, without duplicate-key sync failures.
+    priority: should
+    acceptance:
+      - After handover, the account keeps its prior transactions and receives new ones from Plaid.
+      - Syncing after handover does not fail on duplicate keys.
+  - id: R9
+    text: The user can track real-estate properties, valued automatically through RentCast or by a manually entered value, with a value history that counts toward net worth.
+    priority: should
+    acceptance:
+      - A property with a RentCast key gets a valuation on refresh.
+      - A manual value is recorded in the history and included in net worth.
+  - id: R10
+    text: The dashboard and reports show net worth over time (including estimated history), income versus expenses with savings rate, spending by group and category, balances by account type, and college-savings projections per child.
+    priority: must
+    acceptance:
+      - Each report renders from the data in the database.
+      - Selecting a chart element lists the transactions behind it.
+      - Filtering by household owner changes the totals.
+  - id: R11
+    text: A subscriptions report finds recurring charges and shows their cost per year.
+    priority: should
+    acceptance:
+      - Monthly repeating charges from the same merchant are listed as subscriptions with annual cost.
+  - id: R12
+    text: The user can set monthly budget targets by category group and see forecasts, likely ranges, month-end projections and on-track, at-risk or over status; past months are judged against the target in effect then.
+    priority: should
+    acceptance:
+      - Setting a target shows actual versus target for the month.
+      - Changing a target does not alter the status of earlier months.
+  - id: R13
+    text: Household members with dates of birth can be maintained and assigned as account owners.
+    priority: could
+    acceptance:
+      - Adding a member makes them selectable as an account owner.
+      - The dashboard owner filter limits figures to that owner's accounts.
+  - id: R14
+    text: An optional AI Advisor, off until the user accepts the disclosure and supplies their own Anthropic key, answers financial questions using local tools that read the user's figures.
+    priority: could
+    acceptance:
+      - With the advisor disabled, no request is sent to Anthropic.
+      - Once enabled, a question returns an answer based on the user's balances, cash flow or budget.
+  - id: R15
+    text: The user can create a demo database with sample data.
+    priority: could
+    acceptance:
+      - Choosing the demo option produces a database populated with sample accounts and transactions.
+  - id: R16
+    text: The app supports light and dark themes and the Windows accent colour, and charts follow the theme.
+    priority: could
+    acceptance:
+      - Switching theme restyles the window and charts.
+  - id: R17
+    text: Database schema changes are applied automatically at startup from versioned scripts, and first run on a new machine provisions the database and a least-privilege user.
+    priority: must
+    acceptance:
+      - Starting against an older schema applies the missing migrations once.
+      - The app database user has rights only on the hoard schema, from localhost.

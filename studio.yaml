@@ -1,0 +1,15 @@
+name: hoard
+description: A local-first personal financial aggregator for Windows that syncs bank, brokerage and property data into a private MySQL database and reports on it.
+stack:
+  runtime: dotnet
+  summary: C# on .NET 8; WPF desktop app (WPF-UI, CommunityToolkit.Mvvm, LiveCharts2), Windows-service sync worker, Dapper over MySQL, xUnit tests, WiX installer
+classification: sensitive
+ports:
+  staging: 4103
+  live: 4104
+commands:
+  install: dotnet restore Hoard.sln
+  test: dotnet test tests/Hoard.Core.Tests/Hoard.Core.Tests.csproj
+  build: dotnet build Hoard.sln
+notApplicable:
+  accessibility: Hoard is a Windows desktop (WPF) application and has no web pages to check.
