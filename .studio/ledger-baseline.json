@@ -1,0 +1,513 @@
+{
+  "source": "docs/build-ledger-hoard.html",
+  "importedAt": "2026-10-18T20:04:42.017Z",
+  "sha": "3450f5b",
+  "through": "2026-10-18T15:01:17-04:00",
+  "ledger": {
+    "title": "Hoard",
+    "lead": "Every application Ingenium Studio builds keeps a Build Ledger: time, scope, code, quality, and AI usage, from the first requirement to the latest release. This is Hoard's first: a local-first personal finance aggregator for Windows that keeps a household's bank, brokerage and property data in a private MySQL database. Releases 1.0 to 2.0.1 were built before Hoard joined the studio; this ledger measures the whole application as it stands, and in full the work since Oct 9 (Plaid as a second bank provider, account handover, budgets, interactive reports, an AI Advisor, three live-found defects fixed, and onboarding into Ingenium Studio), built by an AI engineering agent (Claude Opus 5.5).",
+    "meta": "Oct 9 – 18, 2026 · 10 calendar days, work on 5 · repository Hoard at 3450f5b (last release v2.0.1, Sept 26) · first ledger for this app",
+    "model": "claude-opus-5-5",
+    "caveats": [
+      "Token and time figures come from this project's three Claude Code sessions (Oct 9–18) only. Releases 1.0.0 to 2.0.1 (Sept 7–26) have no session record here, so none of their time or tokens is counted; their code is counted in the line totals.",
+      "Active time sums gaps of under ten minutes between logged events, so long waits for the user count as idle.",
+      "Model calls are counted once per API response; a response with several tool calls counts once. Prompts are the user's own messages, including the onboarding stage's request.",
+      "Work after the last commit (this ledger) is in the day totals but in no phase. Figures were collected while the ledger was being written, so its last few minutes are not included.",
+      "Tokens are not converted to cost.",
+      "Line counts are non-blank lines of tracked files at commit 3450f5b. \"Lines of code, tests and tools\" leaves Markdown out. Inserted and deleted lines are git's figures for the four non-merge commits since Oct 9; the Oct 2 import of 2.0.1 (17,678 lines) is not counted as churn.",
+      "Words are whitespace-separated tokens, table rules included.",
+      "Defects per 1,000 lines divide by lines inserted since Oct 9, because all four defects surfaced in or around that work.",
+      "The requirements and decision log were inferred from the code at onboarding, not written before the build."
+    ],
+    "data": {
+      "days": [
+        [
+          "Oct 9",
+          0.23,
+          89765
+        ],
+        [
+          "Oct 11",
+          0.39,
+          142668
+        ],
+        [
+          "Oct 15",
+          0.55,
+          23667
+        ],
+        [
+          "Oct 16",
+          0.06,
+          15369
+        ],
+        [
+          "Oct 18",
+          0.15,
+          22745
+        ]
+      ],
+      "phases": [
+        [
+          "1 Plaid provider & handover",
+          0.23,
+          89.8
+        ],
+        [
+          "2 Reports, budgets, AI Advisor",
+          0.39,
+          142.7
+        ],
+        [
+          "3 Recap, commit, publish",
+          0.33,
+          3.4
+        ],
+        [
+          "4 Startup crash, chart theme",
+          0.22,
+          20.2
+        ],
+        [
+          "5 Plaid duplicate-key fix",
+          0.15,
+          15.9
+        ],
+        [
+          "6 Ingenium Studio onboarding",
+          0.02,
+          8.6
+        ]
+      ],
+      "commits": [
+        [
+          "0107888",
+          "Plaid provider, account handover, budgets, AI Advisor, interactive reports",
+          "Oct 15 07:42",
+          "1–3",
+          0.95,
+          235858,
+          5329,
+          150
+        ],
+        [
+          "d542153",
+          "Fix startup crash in chart theming; dark chart backgrounds, compact axis labels",
+          "Oct 15 08:21",
+          "4",
+          0.22,
+          20242,
+          73,
+          22
+        ],
+        [
+          "3f172b1",
+          "Fix duplicate-key sync failures after handover; show Plaid Link error codes",
+          "Oct 18 14:54",
+          "5",
+          0.15,
+          15922,
+          88,
+          15
+        ],
+        [
+          "cb7b58e",
+          "Onboarding: .studio documents and studio.yaml (REQ-0002)",
+          "Oct 18 15:01",
+          "6",
+          0.02,
+          8550,
+          212,
+          0
+        ],
+        [
+          "3450f5b",
+          "Merge: onboarding into Ingenium Studio",
+          "Oct 18 15:01",
+          "6",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      "loc": [
+        [
+          "Hoard.Desktop (WPF)",
+          7873,
+          73,
+          "a"
+        ],
+        [
+          "Hoard.Core",
+          7414,
+          55,
+          "a"
+        ],
+        [
+          "Hoard.Core.Tests",
+          2342,
+          12,
+          "t"
+        ],
+        [
+          "Hoard.Setup",
+          1097,
+          9,
+          "a"
+        ],
+        [
+          "docs (Markdown, icon tool)",
+          666,
+          5,
+          "o"
+        ],
+        [
+          "installer + publish scripts",
+          458,
+          5,
+          "o"
+        ],
+        [
+          "README, CHANGELOG",
+          306,
+          2,
+          "o"
+        ],
+        [
+          ".studio + studio.yaml",
+          195,
+          4,
+          "o"
+        ],
+        [
+          "Hoard.Service",
+          94,
+          4,
+          "a"
+        ],
+        [
+          "build config",
+          62,
+          3,
+          "o"
+        ]
+      ],
+      "ext": [
+        [
+          "C# (.cs)",
+          15441
+        ],
+        [
+          "XAML",
+          2548
+        ],
+        [
+          "Markdown",
+          910
+        ],
+        [
+          "SQL",
+          696
+        ],
+        [
+          "PowerShell",
+          332
+        ],
+        [
+          "Project & solution files",
+          148
+        ],
+        [
+          "WiX (.wxs)",
+          126
+        ],
+        [
+          "YAML",
+          125
+        ],
+        [
+          "Python",
+          105
+        ],
+        [
+          "Other (manifest, SVG, JSON)",
+          76
+        ]
+      ],
+      "req": [
+        [
+          "Must",
+          7
+        ],
+        [
+          "Should",
+          6
+        ],
+        [
+          "Could",
+          4
+        ]
+      ],
+      "docs": [
+        [
+          "Architecture",
+          5093
+        ],
+        [
+          "User guide",
+          3133
+        ],
+        [
+          "Changelog",
+          2762
+        ],
+        [
+          "README",
+          1387
+        ],
+        [
+          "Installation",
+          1045
+        ],
+        [
+          "Studio requirements",
+          985
+        ],
+        [
+          "Studio decisions",
+          419
+        ],
+        [
+          "Studio architecture",
+          344
+        ]
+      ],
+      "releases": [
+        [
+          "1.0.0",
+          "Sept 7",
+          "First major release: SimpleFIN sync, categories and rules, reports, background sync service"
+        ],
+        [
+          "1.1.0",
+          "Sept 9",
+          "Self-contained MSI installer with a private MySQL server"
+        ],
+        [
+          "2.0.0",
+          "Sept 21",
+          "Duplicate-account merge, Institutions page (migration 0009)"
+        ],
+        [
+          "2.0.1",
+          "Sept 26",
+          "Subscriptions report; in-place patch"
+        ],
+        [
+          "Unreleased",
+          "Oct 9–18",
+          "Plaid, account handover, budgets, interactive reports, AI Advisor, defect fixes (migrations 0010–0011)"
+        ]
+      ],
+      "tests": [
+        [
+          "Categorization",
+          27,
+          false
+        ],
+        [
+          "Reporting",
+          24,
+          false
+        ],
+        [
+          "Plaid & handover",
+          21,
+          true
+        ],
+        [
+          "Budget",
+          21,
+          true
+        ],
+        [
+          "Import",
+          10,
+          false
+        ],
+        [
+          "Real estate",
+          10,
+          false
+        ],
+        [
+          "Sync service",
+          9,
+          false
+        ],
+        [
+          "Account duplicates",
+          8,
+          false
+        ],
+        [
+          "Subscriptions",
+          6,
+          false
+        ],
+        [
+          "Other units",
+          11,
+          false
+        ]
+      ],
+      "defects": [
+        [
+          "Desktop crashed at startup: chart styles ran inside LiveCharts' constructor",
+          "UI",
+          "Critical",
+          "Fixed, d542153"
+        ],
+        [
+          "Plaid sync failed with a duplicate key on transactions after an account handover",
+          "Sync",
+          "High",
+          "Fixed, 3f172b1"
+        ],
+        [
+          "Charts white in dark mode; currency axis labels overlapped",
+          "UI",
+          "Medium",
+          "Fixed, d542153"
+        ],
+        [
+          "Linking LPL Financial through Plaid ended with \"unknown error\"",
+          "Plaid Link",
+          "Not rated",
+          "Open: Plaid's error code now shown"
+        ]
+      ],
+      "tokens": {
+        "input": 400,
+        "output": 294214,
+        "cacheWrite": 1290969,
+        "cacheRead": 42782570
+      },
+      "tools": [
+        [
+          "Bash",
+          151
+        ],
+        [
+          "Write",
+          30
+        ],
+        [
+          "Edit",
+          22
+        ],
+        [
+          "Read",
+          14
+        ],
+        [
+          "PowerShell",
+          4
+        ],
+        [
+          "Grep",
+          3
+        ],
+        [
+          "WebFetch",
+          3
+        ],
+        [
+          "Other",
+          6
+        ]
+      ],
+      "shape": [
+        [
+          "Projects",
+          "5 (4 application, 1 test)"
+        ],
+        [
+          "Screens / view models",
+          "22 / 20"
+        ],
+        [
+          "Bank providers",
+          "2 (SimpleFIN, Plaid), plus property valuations"
+        ],
+        [
+          "Report tabs",
+          "7"
+        ],
+        [
+          "AI Advisor tools",
+          "9"
+        ],
+        [
+          "Database migrations",
+          "11 (2 since Oct 9)"
+        ],
+        [
+          "Commits since Oct 9 (non-merge + merge)",
+          "4 + 1"
+        ],
+        [
+          "Lines inserted / deleted since Oct 9",
+          "5,702 / 187"
+        ],
+        [
+          "Decisions recorded",
+          "9 (inferred at onboarding)"
+        ],
+        [
+          "Releases",
+          "1.0.0, 1.1.0, 2.0.0, 2.0.1 (Sept 7–26)"
+        ]
+      ],
+      "kpis": [
+        [
+          "≈4,200",
+          "lines inserted per active hour"
+        ],
+        [
+          "≈52",
+          "output tokens per inserted line, reasoning included"
+        ],
+        [
+          "≈14",
+          "model calls per prompt (200 calls, 14 prompts)"
+        ],
+        [
+          "≈1.2",
+          "tool calls per model call (233 / 200)"
+        ],
+        [
+          "0.70",
+          "live-found defects per 1,000 inserted lines"
+        ],
+        [
+          "1 : 7",
+          "test lines to application lines"
+        ],
+        [
+          "37 min",
+          "active time behind the 5,329-line feature commit (phases 1–2)"
+        ],
+        [
+          "79%",
+          "of output tokens in the two feature phases, in 45% of active time"
+        ],
+        [
+          "≈0.2 h",
+          "median active time per phase (6 phases)"
+        ]
+      ]
+    }
+  }
+}

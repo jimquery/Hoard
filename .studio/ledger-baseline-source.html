@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingenium Studio Build Ledger · Hoard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&family=Roboto:wght@300;400;500;700&display=swap">
+<style>
+/* Layout: one reading column of sections, each a short lead, a chart drawn to scale, then its raw table. */
+:root {
+  /* Color: Synopsys palette. Light Purple for the main series, teal (an accent, for a second data set) for the other,
+     gold only for the highest severity. Dark by default, like the Ingenium Studio site. */
+  --bg: #000000;
+  --surface: #191c20;
+  --ink: #e8e8ea;
+  --muted: #b3b4b3;
+  --rule: #33373f;
+  --grid: #24272d;
+  --purple: #7e45af;
+  --purple-soft: #bea2d7;
+  --label: #bea2d7;
+  --teal: #00a5ab;
+  --teal-soft: #7fd2d5;
+  --good: #00a5ab;
+  --warn: #bea2d7;
+  --crit: #fdb71a;
+  /* Type: Roboto, the Synopsys typeface; Roboto Mono for figures. */
+  --font-text: "Roboto", Arial, system-ui, sans-serif;
+  --font-num: "Roboto Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f0f0f0; --surface: #ffffff; --ink: #000000; --muted: #646e81; --rule: #b3b4b3; --grid: #e6e6e6;
+    --purple: #5a2a82; --purple-soft: #b89ad6; --label: #5a2a82; --teal: #007d82; --teal-soft: #8fd3d6;
+    --good: #007d82; --warn: #5a2a82; --crit: #b07d0c;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f0f0f0; --surface: #ffffff; --ink: #000000; --muted: #646e81; --rule: #b3b4b3; --grid: #e6e6e6;
+  --purple: #5a2a82; --purple-soft: #b89ad6; --label: #5a2a82; --teal: #007d82; --teal-soft: #8fd3d6;
+  --good: #007d82; --warn: #5a2a82; --crit: #b07d0c;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--font-text); padding-inline: 20px; }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 72px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 56px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 300; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 300; }
+h3 { font-size: 1rem; font-weight: 500; }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font: 500 0.75rem/1 var(--font-text); text-transform: uppercase; letter-spacing: 0.2em; color: var(--label); }
+.lead { color: var(--muted); font-size: 1.05rem; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 14px; }
+header .meta { color: var(--muted); font-size: 0.95rem; }
+
+/* Headline figures: the build at a glance. */
+.figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.figure { background: var(--surface); padding: 18px 18px 16px; display: grid; gap: 4px; align-content: start; }
+.figure .v { font: 300 1.9rem/1.1 var(--font-text); color: var(--ink); font-variant-numeric: tabular-nums; }
+.figure .k { font-size: 0.85rem; color: var(--muted); }
+.figure .d { font: 400 0.75rem/1.3 var(--font-num); color: var(--label); }
+@media (max-width: 760px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
+section > header { gap: 8px; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 12px; display: grid; gap: 10px; min-width: 0; }
+.panel h3 { color: var(--ink); }
+.panel .note { font-size: 0.85rem; color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.chart { width: 100%; overflow-x: auto; }
+.chart svg { display: block; width: 100%; height: auto; min-width: 320px; }
+.chart text { fill: var(--muted); font: 400 11px var(--font-num); }
+.chart text.lbl { fill: var(--ink); font-family: var(--font-text); font-size: 12px; }
+.chart text.val { fill: var(--ink); }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--rule); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+details.raw { border-top: 1px solid var(--rule); padding-top: 8px; }
+details.raw summary { cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--label); list-style: none; display: inline-flex; gap: 6px; align-items: center; }
+details.raw summary::-webkit-details-marker { display: none; }
+details.raw summary::before { content: "▸"; transition: transform 0.15s; }
+details.raw[open] summary::before { transform: rotate(90deg); }
+details.raw summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 3px; }
+.tablewrap { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; border-bottom-color: var(--rule); }
+td.n, th.n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 600; border-top: 1px solid var(--rule); }
+.sev { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; border: 1px solid currentColor; }
+.sev.c { color: var(--crit); } .sev.h { color: var(--warn); } .sev.m { color: var(--muted); } .sev.o { color: var(--teal); }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+@media (max-width: 760px) { .kpis { grid-template-columns: 1fr; } }
+.kpi { display: grid; gap: 4px; padding-left: 14px; border-left: 3px solid var(--purple); }
+.kpi .v { font: 300 1.6rem/1.2 var(--font-text); }
+.kpi .k { font-size: 0.9rem; color: var(--muted); }
+ul.caveats { margin: 0; padding-left: 1.2em; color: var(--muted); display: grid; gap: 6px; max-width: 70ch; }
+footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--rule); padding-top: 14px; }
+@media (prefers-reduced-motion: reduce) { details.raw summary::before { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Ingenium Studio · Build Ledger</div>
+    <h1>Hoard</h1>
+    <p class="lead">Every application Ingenium Studio builds keeps a Build Ledger: time, scope, code, quality, and AI usage, from the first requirement to the latest release. This is Hoard's first: a local-first personal finance aggregator for Windows that keeps a household's bank, brokerage and property data in a private MySQL database. Releases 1.0 to 2.0.1 were built before Hoard joined the studio; this ledger measures the whole application as it stands, and in full the work since Oct 9 (Plaid as a second bank provider, account handover, budgets, interactive reports, an AI Advisor, three live-found defects fixed, and onboarding into Ingenium Studio), built by an AI engineering agent (Claude Opus 5.5).</p>
+    <p class="meta"><span class="num">Oct 9 – 18, 2026</span> · 10 calendar days, work on 5 · repository <span class="num">Hoard</span> at <span class="num">3450f5b</span> (last release <span class="num">v2.0.1</span>, Sept 26) · first ledger for this app</p>
+  </header>
+
+  <div class="figures" aria-label="Headline figures">
+    <div class="figure"><span class="v">17</span><span class="k">requirements, inferred at onboarding</span><span class="d">7 must · 6 should · 4 could</span></div>
+    <div class="figure"><span class="v">≈19.6k</span><span class="k">lines of code, tests and tools</span><span class="d">+5,702 inserted since Oct 9</span></div>
+    <div class="figure"><span class="v">≈1.4 h</span><span class="k">active session time</span><span class="d">3 sessions, Oct 9–18</span></div>
+    <div class="figure"><span class="v">294k</span><span class="k">output tokens</span><span class="d">200 model calls</span></div>
+    <div class="figure"><span class="v">4</span><span class="k">commits since Oct 9</span><span class="d">+1 merge · no pull requests</span></div>
+    <div class="figure"><span class="v">147</span><span class="k">offline test cases, all passing</span><span class="d">+3 regression tests Oct 16</span></div>
+    <div class="figure"><span class="v">3 / 4</span><span class="k">live-found defects fixed</span><span class="d">1 open, awaiting a retry</span></div>
+    <div class="figure"><span class="v">97.1%</span><span class="k">of model input served from cache</span><span class="d">first measurement</span></div>
+  </div>
+
+  <!-- Time -->
+  <section>
+    <header>
+      <div class="eyebrow">Time</div>
+      <h2>Where the hours went</h2>
+      <p class="lead">Active time counts gaps of under ten minutes between session events, so time spent waiting for the user (a 37-hour pause between the two feature requests, the days between defect reports) is left out. Days are Eastern time.</p>
+    </header>
+    <div class="two">
+      <div class="panel">
+        <h3>Active hours by day</h3>
+        <div class="chart" id="chart-days-h"></div>
+      </div>
+      <div class="panel">
+        <h3>Output tokens by day</h3>
+        <div class="chart" id="chart-days-t"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Active hours and output tokens by phase</h3>
+      <p class="note">Phases follow the user's requests. Phases 1 and 2 were built without a commit and landed together in phase 3. Bars share one scale per measure.</p>
+      <div class="legend"><span><i style="background:var(--purple)"></i>Active hours</span><span><i style="background:var(--teal)"></i>Output tokens (thousands)</span></div>
+      <div class="chart" id="chart-phases"></div>
+      <details class="raw"><summary>Raw figures: every commit since Oct 9</summary>
+        <div class="tablewrap"><table id="table-commits"></table></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- Code -->
+  <section>
+    <header>
+      <div class="eyebrow">Code</div>
+      <h2>What was built</h2>
+      <p class="lead">Non-blank lines in files tracked by git: C#, XAML, SQL, PowerShell, WiX, YAML, Python and Markdown. Images, the icon and the license are not counted.</p>
+    </header>
+    <div class="panel">
+      <h3>Lines by project</h3>
+      <div class="legend"><span><i style="background:var(--purple)"></i>Application</span><span><i style="background:var(--teal)"></i>Tests and fakes</span><span><i style="background:var(--purple-soft)"></i>Docs, installer, studio files</span></div>
+      <div class="chart" id="chart-loc"></div>
+      <details class="raw"><summary>Raw figures: lines and files by project</summary>
+        <div class="tablewrap"><table id="table-loc"></table></div>
+      </details>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <h3>Lines by file type</h3>
+        <div class="chart" id="chart-ext"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-ext"></table></div></details>
+      </div>
+      <div class="panel">
+        <h3>Shape of the application</h3>
+        <div class="tablewrap"><table id="table-shape"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Requirements -->
+  <section>
+    <header>
+      <div class="eyebrow">Scope</div>
+      <h2>Requirements, releases and documents</h2>
+      <p class="lead">Hoard came to the studio with working software and no requirements document, so its 17 requirements were inferred from the code at onboarding (REQ-0002) and are kept by the studio from here on.</p>
+    </header>
+    <div class="two">
+      <div class="panel">
+        <h3>Requirements by priority</h3>
+        <p class="note">All 17 carry a priority and acceptance criteria.</p>
+        <div class="chart" id="chart-req"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-req"></table></div></details>
+      </div>
+      <div class="panel">
+        <h3>Documentation, in words</h3>
+        <div class="chart" id="chart-docs"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-docs"></table></div></details>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Releases</h3>
+      <p class="note">From the changelog. Only the unreleased work falls inside this ledger's session record.</p>
+      <div class="tablewrap"><table id="table-releases"></table></div>
+    </div>
+  </section>
+
+  <!-- Quality -->
+  <section>
+    <header>
+      <div class="eyebrow">Quality</div>
+      <h2>Tests and defects</h2>
+      <p class="lead">Offline tests run against in-memory fakes of the repositories and providers on every build. The desktop UI and real bank connections have no automated tests, so every defect below was found by the user running the app against live data.</p>
+    </header>
+    <div class="two">
+      <div class="panel">
+        <h3>Test cases by suite</h3>
+        <div class="legend"><span><i style="background:var(--teal)"></i>Suite added since Oct 9</span><span><i style="background:var(--purple)"></i>Earlier suite</span></div>
+        <div class="chart" id="chart-tests"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-tests"></table></div></details>
+      </div>
+      <div class="panel">
+        <h3>Live-found defects</h3>
+        <p class="note"><span class="sev c">Critical 1</span> <span class="sev h">High 1</span> <span class="sev m">Medium 1</span> <span class="sev o">Open 1</span> · all three fixes were verified on the user's machine or by new regression tests</p>
+        <div class="tablewrap"><table id="table-defects"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section>
+    <header>
+      <div class="eyebrow">AI usage</div>
+      <h2>Tokens and tool calls</h2>
+      <p class="lead">From the Claude Code session logs for this project: three sessions, one context compaction. Model claude-opus-5-5 for development (193 calls); the studio's onboarding stage ran on claude-sonnet-5-5 (7 calls).</p>
+    </header>
+    <div class="two">
+      <div class="panel">
+        <h3>Input tokens, by how they were served</h3>
+        <p class="note">Share of 44.1 million input tokens. Output tokens are shown separately because they are a different kind of work.</p>
+        <div class="chart" id="chart-input"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-tokens"></table></div></details>
+      </div>
+      <div class="panel">
+        <h3>Tool calls</h3>
+        <div class="chart" id="chart-tools"></div>
+        <details class="raw"><summary>Raw figures</summary><div class="tablewrap"><table id="table-tools"></table></div></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section>
+    <header>
+      <div class="eyebrow">Derived</div>
+      <h2>Rates</h2>
+    </header>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section>
+    <header>
+      <div class="eyebrow">Method</div>
+      <h2>What these numbers cover</h2>
+    </header>
+    <ul class="caveats">
+      <li>Token and time figures come from this project's three Claude Code sessions (Oct 9–18) only. Releases 1.0.0 to 2.0.1 (Sept 7–26) have no session record here, so none of their time or tokens is counted; their code is counted in the line totals.</li>
+      <li>Active time sums gaps of under ten minutes between logged events, so long waits for the user count as idle.</li>
+      <li>Model calls are counted once per API response; a response with several tool calls counts once. Prompts are the user's own messages, including the onboarding stage's request.</li>
+      <li>Work after the last commit (this ledger) is in the day totals but in no phase. Figures were collected while the ledger was being written, so its last few minutes are not included.</li>
+      <li>Tokens are not converted to cost.</li>
+      <li>Line counts are non-blank lines of tracked files at commit 3450f5b. "Lines of code, tests and tools" leaves Markdown out. Inserted and deleted lines are git's figures for the four non-merge commits since Oct 9; the Oct 2 import of 2.0.1 (17,678 lines) is not counted as churn.</li>
+      <li>Words are whitespace-separated tokens, table rules included.</li>
+      <li>Defects per 1,000 lines divide by lines inserted since Oct 9, because all four defects surfaced in or around that work.</li>
+      <li>The requirements and decision log were inferred from the code at onboarding, not written before the build.</li>
+    </ul>
+  </section>
+
+  <footer>Hoard joined Ingenium Studio on Oct 18, 2026 (REQ-0002). Figures collected Oct 18, 2026 at 15:26 Eastern; the session continues, so later work is not included.</footer>
+</div>
+
+<script>
+// ---- data (collected from the repository, git history and the session logs) ---------------------------------------
+const days = [["Oct 9", 0.23, 89765], ["Oct 11", 0.39, 142668], ["Oct 15", 0.55, 23667], ["Oct 16", 0.06, 15369], ["Oct 18", 0.15, 22745]];
+const phases = [["1 Plaid provider & handover", 0.23, 89.8], ["2 Reports, budgets, AI Advisor", 0.39, 142.7], ["3 Recap, commit, publish", 0.33, 3.4],
+  ["4 Startup crash, chart theme", 0.22, 20.2], ["5 Plaid duplicate-key fix", 0.15, 15.9], ["6 Ingenium Studio onboarding", 0.02, 8.6]];
+// [commit, summary, committed (ET), phases, active h, output tokens, inserted, deleted]
+const commits = [["0107888", "Plaid provider, account handover, budgets, AI Advisor, interactive reports", "Oct 15 07:42", "1–3", 0.95, 235858, 5329, 150],
+  ["d542153", "Fix startup crash in chart theming; dark chart backgrounds, compact axis labels", "Oct 15 08:21", "4", 0.22, 20242, 73, 22],
+  ["3f172b1", "Fix duplicate-key sync failures after handover; show Plaid Link error codes", "Oct 18 14:54", "5", 0.15, 15922, 88, 15],
+  ["cb7b58e", "Onboarding: .studio documents and studio.yaml (REQ-0002)", "Oct 18 15:01", "6", 0.02, 8550, 212, 0],
+  ["3450f5b", "Merge: onboarding into Ingenium Studio", "Oct 18 15:01", "6", "", "", "", ""]];
+// [project, lines, files, kind] kind: a = application, t = tests/fakes, o = other
+const loc = [["Hoard.Desktop (WPF)", 7873, 73, "a"], ["Hoard.Core", 7414, 55, "a"], ["Hoard.Core.Tests", 2342, 12, "t"], ["Hoard.Setup", 1097, 9, "a"],
+  ["docs (Markdown, icon tool)", 666, 5, "o"], ["installer + publish scripts", 458, 5, "o"], ["README, CHANGELOG", 306, 2, "o"], [".studio + studio.yaml", 195, 4, "o"],
+  ["Hoard.Service", 94, 4, "a"], ["build config", 62, 3, "o"]];
+const ext = [["C# (.cs)", 15441], ["XAML", 2548], ["Markdown", 910], ["SQL", 696], ["PowerShell", 332], ["Project & solution files", 148], ["WiX (.wxs)", 126], ["YAML", 125], ["Python", 105], ["Other (manifest, SVG, JSON)", 76]];
+const req = [["Must", 7], ["Should", 6], ["Could", 4]];
+const docs = [["Architecture", 5093], ["User guide", 3133], ["Changelog", 2762], ["README", 1387], ["Installation", 1045], ["Studio requirements", 985], ["Studio decisions", 419], ["Studio architecture", 344]];
+const releases = [["1.0.0", "Sept 7", "First major release: SimpleFIN sync, categories and rules, reports, background sync service"],
+  ["1.1.0", "Sept 9", "Self-contained MSI installer with a private MySQL server"], ["2.0.0", "Sept 21", "Duplicate-account merge, Institutions page (migration 0009)"],
+  ["2.0.1", "Sept 26", "Subscriptions report; in-place patch"], ["Unreleased", "Oct 9–18", "Plaid, account handover, budgets, interactive reports, AI Advisor, defect fixes (migrations 0010–0011)"]];
+// [suite, cases, added since Oct 9]
+const tests = [["Categorization", 27, false], ["Reporting", 24, false], ["Plaid & handover", 21, true], ["Budget", 21, true], ["Import", 10, false],
+  ["Real estate", 10, false], ["Sync service", 9, false], ["Account duplicates", 8, false], ["Subscriptions", 6, false], ["Other units", 11, false]];
+// [defect, area, severity, status]
+const defects = [["Desktop crashed at startup: chart styles ran inside LiveCharts' constructor", "UI", "Critical", "Fixed, d542153"],
+  ["Plaid sync failed with a duplicate key on transactions after an account handover", "Sync", "High", "Fixed, 3f172b1"],
+  ["Charts white in dark mode; currency axis labels overlapped", "UI", "Medium", "Fixed, d542153"],
+  ["Linking LPL Financial through Plaid ended with \"unknown error\"", "Plaid Link", "Not rated", "Open: Plaid's error code now shown"]];
+const tokens = {"input": 400, "output": 294214, "cacheWrite": 1290969, "cacheRead": 42782570};
+const tools = [["Bash", 151], ["Write", 30], ["Edit", 22], ["Read", 14], ["PowerShell", 4], ["Grep", 3], ["WebFetch", 3], ["Other", 6]];
+const shape = [
+  ["Projects", "5 (4 application, 1 test)"], ["Screens / view models", "22 / 20"], ["Bank providers", "2 (SimpleFIN, Plaid), plus property valuations"],
+  ["Report tabs", "7"], ["AI Advisor tools", "9"], ["Database migrations", "11 (2 since Oct 9)"],
+  ["Commits since Oct 9 (non-merge + merge)", "4 + 1"], ["Lines inserted / deleted since Oct 9", "5,702 / 187"],
+  ["Decisions recorded", "9 (inferred at onboarding)"], ["Releases", "1.0.0, 1.1.0, 2.0.0, 2.0.1 (Sept 7–26)"]
+];
+const kpis = [
+  ["≈4,200", "lines inserted per active hour"], ["≈52", "output tokens per inserted line, reasoning included"],
+  ["≈14", "model calls per prompt (200 calls, 14 prompts)"], ["≈1.2", "tool calls per model call (233 / 200)"],
+  ["0.70", "live-found defects per 1,000 inserted lines"], ["1 : 7", "test lines to application lines"],
+  ["37 min", "active time behind the 5,329-line feature commit (phases 1–2)"], ["79%", "of output tokens in the two feature phases, in 45% of active time"],
+  ["≈0.2 h", "median active time per phase (6 phases)"]
+];
+
+// ---- helpers -------------------------------------------------------------------------------------------------------
+const NS = "http://www.w3.org/2000/svg";
+const fmt = n => n.toLocaleString("en-US");
+const round = t => +t.toFixed(2);
+function el(name, attrs, text) {
+  const e = document.createElementNS(NS, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function niceMax(v, ticks) {
+  const raw = v / ticks, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  return { step, max: step * ticks };
+}
+// Horizontal bars: rows of [label, value, colorVar]; one scale, ticks along the bottom.
+function hbars(id, rows, opts = {}) {
+  const host = document.getElementById(id);
+  const labelW = opts.labelW ?? 170, rowH = opts.rowH ?? 24, W = opts.W ?? 640, plotW = W - labelW - 64, top = 6;
+  const { step, max } = niceMax(Math.max(...rows.map(r => r[1])), opts.ticks ?? 4);
+  const H = top + rows.length * rowH + 26;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria ?? "" });
+  const x = v => labelW + (v / max) * plotW;
+  for (let i = 0; i * step <= max + 1e-9; i++) {
+    const t = round(i * step);
+    svg.append(el("line", { x1: x(t), x2: x(t), y1: top, y2: top + rows.length * rowH, class: "gridline" }));
+    svg.append(el("text", { x: x(t), y: H - 8, "text-anchor": "middle" }, opts.tick ? opts.tick(t) : fmt(t)));
+  }
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    svg.append(el("text", { x: labelW - 8, y: y + rowH / 2 + 4, "text-anchor": "end", class: "lbl" }, r[0]));
+    svg.append(el("rect", { x: labelW, y: y + 4, width: Math.max(1, x(r[1]) - labelW), height: rowH - 8, rx: 3, fill: `var(${r[2] ?? "--purple"})` }));
+    svg.append(el("text", { x: x(r[1]) + 6, y: y + rowH / 2 + 4, class: "val" }, opts.value ? opts.value(r[1]) : fmt(r[1])));
+  });
+  svg.append(el("line", { x1: labelW, x2: labelW, y1: top, y2: top + rows.length * rowH, class: "axis" }));
+  host.append(svg);
+}
+// Vertical bars for a short series.
+function vbars(id, rows, opts = {}) {
+  const host = document.getElementById(id);
+  const W = 420, H = 230, left = 44, right = 10, top = 18, bottom = 30;
+  const plotW = W - left - right, plotH = H - top - bottom;
+  const { step, max } = niceMax(Math.max(...rows.map(r => r[1])), 4);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria ?? "" });
+  const y = v => top + plotH - (v / max) * plotH;
+  for (let i = 0; i * step <= max + 1e-9; i++) {
+    const t = round(i * step);
+    svg.append(el("line", { x1: left, x2: W - right, y1: y(t), y2: y(t), class: "gridline" }));
+    svg.append(el("text", { x: left - 6, y: y(t) + 4, "text-anchor": "end" }, opts.tick ? opts.tick(t) : fmt(t)));
+  }
+  const band = plotW / rows.length, bw = band * 0.56;
+  rows.forEach((r, i) => {
+    const cx = left + band * i + band / 2;
+    svg.append(el("rect", { x: cx - bw / 2, y: y(r[1]), width: bw, height: Math.max(1, top + plotH - y(r[1])), rx: 3, fill: `var(${opts.color ?? "--purple"})` }));
+    svg.append(el("text", { x: cx, y: y(r[1]) - 5, "text-anchor": "middle", class: "val" }, opts.value ? opts.value(r[1]) : fmt(r[1])));
+    svg.append(el("text", { x: cx, y: H - 10, "text-anchor": "middle" }, r[0]));
+  });
+  svg.append(el("line", { x1: left, x2: W - right, y1: top + plotH, y2: top + plotH, class: "axis" }));
+  host.append(svg);
+}
+// Paired horizontal bars: two measures per row, each on its own scale (left half, right half).
+function pairs(id, rows) {
+  const host = document.getElementById(id);
+  const labelW = 230, rowH = 26, W = 760, gap = 56, half = (W - labelW - gap - 30) / 2, top = 6;
+  const a = niceMax(Math.max(...rows.map(r => r[1])), 3), b = niceMax(Math.max(...rows.map(r => r[2])), 3);
+  const H = top + rows.length * rowH + 26;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Active hours and output tokens by phase" });
+  const xa = v => labelW + (v / a.max) * half, x0b = labelW + half + gap, xb = v => x0b + (v / b.max) * half;
+  for (let i = 0; i * a.step <= a.max + 1e-9; i++) {
+    const t = round(i * a.step);
+    svg.append(el("line", { x1: xa(t), x2: xa(t), y1: top, y2: top + rows.length * rowH, class: "gridline" }));
+    svg.append(el("text", { x: xa(t), y: H - 8, "text-anchor": "middle" }, `${t} h`));
+  }
+  for (let i = 0; i * b.step <= b.max + 1e-9; i++) {
+    const t = round(i * b.step);
+    svg.append(el("line", { x1: xb(t), x2: xb(t), y1: top, y2: top + rows.length * rowH, class: "gridline" }));
+    svg.append(el("text", { x: xb(t), y: H - 8, "text-anchor": "middle" }, `${t}k`));
+  }
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    svg.append(el("text", { x: labelW - 8, y: y + rowH / 2 + 4, "text-anchor": "end", class: "lbl" }, r[0]));
+    svg.append(el("rect", { x: labelW, y: y + 5, width: Math.max(1, xa(r[1]) - labelW), height: rowH - 10, rx: 2, fill: "var(--purple)" }));
+    svg.append(el("rect", { x: x0b, y: y + 5, width: Math.max(1, xb(r[2]) - x0b), height: rowH - 10, rx: 2, fill: "var(--teal)" }));
+  });
+  svg.append(el("line", { x1: labelW, x2: labelW, y1: top, y2: top + rows.length * rowH, class: "axis" }));
+  svg.append(el("line", { x1: x0b, x2: x0b, y1: top, y2: top + rows.length * rowH, class: "axis" }));
+  host.append(svg);
+}
+function table(id, head, rows, numeric, total) {
+  const t = document.getElementById(id);
+  const tr = document.createElement("tr");
+  head.forEach((h, i) => { const th = document.createElement("th"); th.textContent = h; if (numeric.includes(i)) th.className = "n"; tr.append(th); });
+  const thead = document.createElement("thead"); thead.append(tr); t.append(thead);
+  const tb = document.createElement("tbody");
+  const add = (r, cls) => {
+    const row = document.createElement("tr"); if (cls) row.className = cls;
+    r.forEach((c, i) => { const td = document.createElement("td"); td.textContent = typeof c === "number" ? fmt(c) : c; if (numeric.includes(i)) td.className = "n"; row.append(td); });
+    tb.append(row);
+  };
+  rows.forEach(r => add(r));
+  if (total) add(total, "total");
+  t.append(tb);
+}
+
+// ---- charts and tables ---------------------------------------------------------------------------------------------
+vbars("chart-days-h", days.map(d => [d[0], d[1]]), { tick: t => `${t} h`, value: v => v.toFixed(2), aria: "Active hours by day" });
+vbars("chart-days-t", days.map(d => [d[0], d[2] / 1000]), { color: "--teal", tick: t => `${t}k`, value: v => `${Math.round(v)}k`, aria: "Output tokens by day" });
+pairs("chart-phases", phases);
+table("table-commits", ["Commit", "Summary", "Committed", "Phases", "Active h", "Output tokens", "Inserted", "Deleted"], commits, [4, 5, 6, 7],
+  ["", "Total (the ledger's own work is in no commit)", "", "", +commits.reduce((s, c) => s + (+c[4] || 0), 0).toFixed(2),
+   commits.reduce((s, c) => s + (+c[5] || 0), 0), commits.reduce((s, c) => s + (+c[6] || 0), 0), commits.reduce((s, c) => s + (+c[7] || 0), 0)]);
+
+hbars("chart-loc", loc.map(r => [r[0], r[1], r[3] === "a" ? "--purple" : r[3] === "t" ? "--teal" : "--purple-soft"]), { labelW: 190, aria: "Lines by project" });
+const locTotal = loc.reduce((s, r) => s + r[1], 0), filesTotal = loc.reduce((s, r) => s + r[2], 0);
+table("table-loc", ["Project", "Kind", "Lines", "Files"],
+  loc.map(r => [r[0], r[3] === "a" ? "Application" : r[3] === "t" ? "Tests / fakes" : "Docs, installer, studio files", r[1], r[2]]), [2, 3],
+  ["Total", "", locTotal, filesTotal]);
+hbars("chart-ext", ext, { W: 420, labelW: 170, ticks: 4, aria: "Lines by file type" });
+table("table-ext", ["File type", "Lines"], ext, [1], ["Total", ext.reduce((s, r) => s + r[1], 0)]);
+table("table-shape", ["Measure", "Value"], shape, []);
+
+hbars("chart-req", req.map(r => [r[0], r[1], r[0] === "Must" ? "--purple" : r[0] === "Should" ? "--purple-soft" : "--teal-soft"]), { W: 420, labelW: 80, rowH: 34, ticks: 4, aria: "Requirements by priority" });
+table("table-req", ["Priority", "Requirements"], req, [1], ["Total", 17]);
+hbars("chart-docs", docs.map(r => [r[0], r[1] / 1000]), { W: 420, labelW: 150, value: v => `${v.toFixed(1)}k`, tick: t => `${t}k`, aria: "Documentation in words" });
+table("table-docs", ["Document", "Words"], docs, [1], ["Total", docs.reduce((s, r) => s + r[1], 0)]);
+table("table-releases", ["Version", "Date", "Headline"], releases, []);
+
+hbars("chart-tests", tests.map(r => [r[0], r[1], r[2] ? "--teal" : "--purple"]), { W: 420, labelW: 140, aria: "Test cases by suite" });
+table("table-tests", ["Suite", "Cases", "Added since Oct 9"], tests.map(r => [r[0], r[1], r[2] ? "Yes" : ""]), [1], ["Total (all passing)", 147, ""]);
+table("table-defects", ["Defect", "Area", "Severity", "Status"], defects, []);
+
+const inTotal = tokens.input + tokens.cacheWrite + tokens.cacheRead;
+hbars("chart-input", [["Cache reads", tokens.cacheRead / inTotal * 100, "--purple"], ["Cache writes", tokens.cacheWrite / inTotal * 100, "--purple-soft"], ["Uncached input", tokens.input / inTotal * 100, "--teal"]],
+  { W: 420, labelW: 110, rowH: 34, ticks: 4, tick: t => `${t}%`, value: v => v < 0.01 ? "<0.01%" : `${v.toFixed(v < 10 ? 2 : 1)}%`, aria: "Input token share" });
+table("table-tokens", ["Measure", "Tokens"], [
+  ["Cache reads", tokens.cacheRead], ["Cache writes", tokens.cacheWrite], ["Uncached input", tokens.input], ["Output (including reasoning)", tokens.output],
+  ["Model calls", 200], ["Prompts", 14], ["Context compactions", 1]], [1],
+  ["Total processed", tokens.input + tokens.output + tokens.cacheWrite + tokens.cacheRead]);
+hbars("chart-tools", tools.map(r => [r[0], r[1], "--purple"]), { W: 420, labelW: 130, aria: "Tool calls" });
+table("table-tools", ["Tool", "Calls"], tools, [1], ["Total", tools.reduce((s, r) => s + r[1], 0)]);
+
+const k = document.getElementById("kpis");
+kpis.forEach(([v, label]) => {
+  const d = document.createElement("div"); d.className = "kpi";
+  d.innerHTML = `<span class="v"></span><span class="k"></span>`;
+  d.querySelector(".v").textContent = v; d.querySelector(".k").textContent = label;
+  k.append(d);
+});
+</script>
+</body>
+</html>
