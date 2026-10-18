@@ -157,7 +157,10 @@ public sealed class PlaidClient
         if (latest["exit"] is JsonObject exit)
         {
             var error = exit["error"];
-            var message = Str(error, "display_message") ?? Str(error, "error_message");
+            // Plaid's display text can be as vague as "unknown error"; the code says what actually failed.
+            var text = Str(error, "display_message") ?? Str(error, "error_message");
+            var code = Str(error, "error_code");
+            var message = code is null ? text : $"Plaid {code}: {text ?? Str(error, "error_type") ?? "Link failed"}";
             if (updateMode && error is null && latest["results"] is not null)
                 return new PlaidLinkStatus(PlaidLinkState.Succeeded, null, null, null, null);
             return new PlaidLinkStatus(PlaidLinkState.Exited, null, null, null, message ?? "Plaid Link was closed before an institution was linked.");
@@ -244,7 +247,10 @@ public sealed class PlaidClient
             if (page.Count == 0 || offset >= total) break;
         }
 
-        var byAccount = transactions.ToLookup(t => t.AccountId, t => t.Tx);
+        // Offset paging can return a transaction twice when the Item's data changes between pages; keep the last copy.
+        var byAccount = transactions
+            .GroupBy(t => t.Tx.ExternalId, StringComparer.Ordinal).Select(g => g.Last())
+            .ToLookup(t => t.AccountId, t => t.Tx);
         var asOf = DateTime.UtcNow;
         var result = (accounts ?? []).Select(a => new ProviderAccount(
             ExternalId: a.AccountId,

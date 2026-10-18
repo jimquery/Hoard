@@ -46,11 +46,14 @@ public static class HandoverMatcher
                         && (s.ExternalId is null || !incomingIds.Contains(s.ExternalId)))
             .ToList();
         var taken = new HashSet<long>();
+        var matchedIds = new HashSet<string>(StringComparer.Ordinal);
         var last = cutoff.Date.AddDays(windowDays);
 
         foreach (var t in incoming.Where(t => !t.IsPending && !string.IsNullOrEmpty(t.ExternalId) && !knownIds.Contains(t.ExternalId!) && t.PostedAtUtc.Date <= last)
                                   .OrderBy(t => t.PostedAtUtc).ThenBy(t => t.ExternalId, StringComparer.Ordinal))
         {
+            // An id repeated in the download is one transaction: matching it twice would give two rows the same id.
+            if (matchedIds.Contains(t.ExternalId!)) continue;
             var description = TransactionFingerprint.NormalizeDescription(t.Description);
             var best = candidates
                 .Where(c => !taken.Contains(c.Id) && c.Amount == t.Amount && Math.Abs((c.PostedAtUtc.Date - t.PostedAtUtc.Date).TotalDays) <= windowDays)
@@ -60,6 +63,7 @@ public static class HandoverMatcher
                 .FirstOrDefault();
             if (best is null) continue;
             taken.Add(best.Id);
+            matchedIds.Add(t.ExternalId!);
             matches.Add(new HandoverMatch(t.ExternalId!, best.Id));
         }
         return matches;

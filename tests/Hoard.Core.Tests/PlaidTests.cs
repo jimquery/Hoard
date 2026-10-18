@@ -101,7 +101,7 @@ public sealed class PlaidParsingTests
             """)!;
         var status = PlaidClient.ParseLinkStatus(json);
         Assert.Equal(PlaidLinkState.Exited, status.State);
-        Assert.Equal("The credentials were not correct.", status.Message);
+        Assert.Equal("Plaid INVALID_CREDENTIALS: The credentials were not correct.", status.Message);
     }
 
     [Fact]
@@ -155,6 +155,28 @@ public sealed class PlaidClientHttpTests
         var account = Assert.Single(set.Accounts);
         Assert.Equal("First Platypus Bank", account.OrgName);
         Assert.Equal([-5m, 7m], account.Transactions.Select(t => t.Amount));
+    }
+
+    [Fact]
+    public async Task Transactions_RepeatedAcrossPages_AreReturnedOnce()
+    {
+        // Offset paging repeats a transaction when the Item's data shifts between pages.
+        var handler = new StubHandler((path, body) =>
+        {
+            var offset = body["options"]!["offset"]!.GetValue<int>();
+            var tx = offset == 0
+                ? """[ { "transaction_id": "t1", "account_id": "a", "amount": 5, "date": "2026-09-01", "name": "ONE" } ]"""
+                : """[ { "transaction_id": "t1", "account_id": "a", "amount": 5, "date": "2026-09-01", "name": "ONE" }, { "transaction_id": "t2", "account_id": "a", "amount": -7, "date": "2026-09-02", "name": "TWO" } ]""";
+            return (HttpStatusCode.OK, $$"""
+                { "accounts": [ { "account_id": "a", "name": "Checking", "mask": "0000", "type": "depository", "balances": { "current": 10, "iso_currency_code": "USD" } } ],
+                  "transactions": {{tx}}, "total_transactions": 3 }
+                """);
+        });
+        var client = new PlaidClient(new HttpClient(handler));
+
+        var set = await client.GetTransactionsAsync(Cred, new FetchRequest(new DateTime(2026, 8, 1), null, false));
+
+        Assert.Equal(["t1", "t2"], Assert.Single(set.Accounts).Transactions.Select(t => t.ExternalId));
     }
 
     [Fact]
@@ -244,6 +266,13 @@ public sealed class HandoverMatcherTests
     {
         var empty = new AccountHandover { AccountId = 1, HandedOverAtUtc = DateTime.UtcNow, HistoryCutoffUtc = null };
         Assert.Empty(HandoverMatcher.Match([In("p1", 5, -1m)], [Row(10, "s", 5, -1m)], empty, 3));
+    }
+
+    [Fact]
+    public void RepeatedIncomingId_MatchesOnlyOneRow()
+    {
+        var matches = HandoverMatcher.Match([In("p1", 5, -9m), In("p1", 5, -9m)], [Row(10, "s1", 5, -9m), Row(11, "s2", 5, -9m)], Handover, 3);
+        Assert.Equal([new HandoverMatch("p1", 10)], matches);
     }
 }
 
@@ -348,6 +377,27 @@ public sealed class HandoverSyncTests
         Assert.Equal(0, sfinResult.PossibleDuplicates);
         Assert.Single(_accounts.Items);
         Assert.Equal(3, _transactions.Items.Count);
+    }
+
+    [Fact]
+    public async Task IdAlreadyStoredOutsideTheMatchWindow_IsNotAdoptedASecondTime()
+    {
+        var sfin = await SeedAsync("SimpleFIN", ProviderKind.SimpleFin);
+        _simpleFin.Response = _ => Account("sfin-acct", 100m, Tx("s1", 5, -10m, "POS COFFEE"));
+        await Sync().SyncInstitutionAsync(sfin.Id);
+        var account = Assert.Single(_accounts.Items);
+
+        var plaid = await SeedAsync("Chase (Plaid)", ProviderKind.Plaid);
+        await _handovers.HandOverAsync(account.Id, new Account { InstitutionId = plaid.Id, ExternalId = "plaid-acct", Name = "Checking (1234)", Currency = "USD", Balance = 100m });
+        // A Plaid row already stored under p1 but dated outside the window the matcher reads (Plaid later moved its date).
+        _transactions.Items.Add(new Transaction { Id = 99, AccountId = account.Id, ExternalId = "p1", PostedAtUtc = new DateTime(2026, 9, 28, 0, 0, 0, DateTimeKind.Utc), Amount = -10m, Description = "Coffee", CreatedAtUtc = DateTime.UtcNow });
+
+        _plaid.Response = _ => Account("plaid-acct", 90m, Tx("p1", 5, -10m, "Coffee"));
+        var result = await Sync().SyncInstitutionAsync(plaid.Id);
+
+        Assert.Equal(SyncStatus.Succeeded, result.Status);
+        Assert.Single(_transactions.Items, t => t.ExternalId == "p1");
+        Assert.Equal("s1", _transactions.Items.Single(t => t.Id != 99).ExternalId);
     }
 
     [Fact]

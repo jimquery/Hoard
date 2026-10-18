@@ -513,8 +513,11 @@ public interface ITransactionRepository
     Task<int> DeleteStalePendingAsync(long accountId, IReadOnlyCollection<string> livePendingExternalIds, CancellationToken ct = default);
     /// <summary>An account's transactions posted in [<paramref name="fromUtc"/>, <paramref name="toUtc"/>], for <see cref="HandoverMatcher"/>.</summary>
     Task<IReadOnlyList<HandoverTransactionRow>> ListForHandoverAsync(long accountId, DateTime fromUtc, DateTime toUtc, CancellationToken ct = default);
-    /// <summary>Gives a stored row the new connection's id, keeping its old id in adopted_from_external_id ('' when it had none).</summary>
-    Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default);
+    /// <summary>
+    /// Gives a stored row the new connection's id, keeping its old id in adopted_from_external_id ('' when it had none).
+    /// Returns false, changing nothing, when another row of the account already has that id.
+    /// </summary>
+    Task<bool> AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default);
 }
 
 public sealed class TransactionRepository : ITransactionRepository
@@ -682,14 +685,18 @@ public sealed class TransactionRepository : ITransactionRepository
             """, new { accountId, fromUtc, toUtc })).ToList();
     }
 
-    public async Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
+    public async Task<bool> AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
     {
         using var c = await _f.OpenAsync(ct);
-        await c.ExecuteAsync("""
-            UPDATE transactions
-               SET adopted_from_external_id = COALESCE(adopted_from_external_id, external_id, ''), external_id = @externalId, updated_at_utc = @now
-             WHERE id = @transactionId
+        // The join skips the update when the id is taken, instead of failing on uq_transactions_account_external.
+        var affected = await c.ExecuteAsync("""
+            UPDATE transactions t
+              LEFT JOIN transactions o ON o.account_id = t.account_id AND o.external_id = @externalId AND o.id <> t.id
+               SET t.adopted_from_external_id = COALESCE(t.adopted_from_external_id, t.external_id, ''),
+                   t.external_id = @externalId, t.updated_at_utc = @now
+             WHERE t.id = @transactionId AND o.id IS NULL
             """, new { transactionId, externalId, now = DateTime.UtcNow });
+        return affected > 0;
     }
 
     public async Task<int> DeleteStalePendingAsync(long accountId, IReadOnlyCollection<string> livePendingExternalIds, CancellationToken ct = default)

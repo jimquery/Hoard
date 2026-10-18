@@ -221,10 +221,14 @@ public sealed class SyncService
         if (first > cutoff.Date.AddDays(window)) return; // the download is all newer than the handover
         var stored = await _transactions.ListForHandoverAsync(accountId, first.AddDays(-window), cutoff.Date.AddDays(2 * window + 1), ct);
         var matches = HandoverMatcher.Match(incoming, stored, handover, window);
+        var adopted = 0;
         foreach (var m in matches)
-            await _transactions.AdoptExternalIdAsync(m.TransactionId, m.ExternalId, ct);
-        if (matches.Count > 0)
-            _log.LogInformation("Matched {Count} downloaded transaction(s) of account {AccountId} to history it had before its handover", matches.Count, accountId);
+        {
+            // The match only sees the date window; an id the account stores outside it is left to the upsert.
+            if (await _transactions.AdoptExternalIdAsync(m.TransactionId, m.ExternalId, ct)) adopted++;
+        }
+        if (adopted > 0)
+            _log.LogInformation("Matched {Count} downloaded transaction(s) of account {AccountId} to history it had before its handover", adopted, accountId);
     }
 
     private async Task<FetchRequest> BuildFetchRequestAsync(Institution inst, CancellationToken ct)

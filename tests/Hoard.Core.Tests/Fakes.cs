@@ -172,12 +172,14 @@ public sealed class FakeTransactionRepository : ITransactionRepository
             .Select(t => new HandoverTransactionRow { Id = t.Id, ExternalId = t.ExternalId, PostedAtUtc = t.PostedAtUtc, Amount = t.Amount, Description = t.Description, CreatedAtUtc = t.CreatedAtUtc, AdoptedFromExternalId = t.AdoptedFromExternalId })
             .ToList());
 
-    public Task AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
+    public Task<bool> AdoptExternalIdAsync(long transactionId, string externalId, CancellationToken ct = default)
     {
         var t = Items.First(x => x.Id == transactionId);
+        if (Items.Any(x => x.Id != t.Id && x.AccountId == t.AccountId && x.ExternalId == externalId))
+            return Task.FromResult(false);
         t.AdoptedFromExternalId ??= t.ExternalId ?? "";
         t.ExternalId = externalId;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 }
 
