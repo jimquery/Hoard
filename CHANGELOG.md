@@ -1,9 +1,12 @@
 # Hoard changelog
 
-## Unreleased
+## 3.0.0 — 2026-10-30
 
-Migrations 0010 and 0011 change the schema (new `account_handovers`, `budget_targets` and `secret_settings` tables,
-`transactions.adopted_from_external_id`).
+A major release: Plaid joins SimpleFIN as a bank provider, accounts can move between connections without losing their
+history, and the app gains a Budget page, interactive reports and an opt-in AI Advisor. Migrations 0010 and 0011
+change the schema (new `account_handovers`, `budget_targets` and `secret_settings` tables,
+`transactions.adopted_from_external_id`), so this is not an in-place patch: install `Hoard-3.0.0-x64.msi`, which
+upgrades 2.x in place like 2.0.0 did, keeping data and settings and applying the migrations.
 
 ### Added
 - **Plaid as a second bank provider** (Institutions › Add Plaid). `PlaidClient`/`PlaidProvider` in Core talk to the
@@ -51,11 +54,20 @@ Migrations 0010 and 0011 change the schema (new `account_handovers`, `budget_tar
 
 ### Fixed
 - **Charts ignored dark mode.** Legend text, tooltip text and tooltip backgrounds were LiveCharts' light defaults on
-  every chart. They now come from theme-aware paints in application resources applied by implicit chart styles, and
-  `ThemeService` re-themes all charts when Windows switches light/dark under the *System* theme (previously only a
-  change in Settings refreshed them).
+  every chart, and the plot area was LiveCharts' own (white unless Windows itself was dark). Each chart now takes
+  theme-aware paints from application resources when it loads and a transparent background, and `ThemeService`
+  re-themes all charts when Windows switches light/dark under the *System* theme (previously only a change in
+  Settings refreshed them). Currency axes use compact labels ($12K, $1.2M) so they no longer overlap.
+- **Plaid syncs failed with a duplicate key** (`uq_transactions_account_external`) on accounts linked to existing
+  ones. Plaid's offset paging can repeat a transaction, and the handover matcher could then give two stored rows the
+  same id. Repeats are now dropped, the matcher uses each id once, and adopting an id that the account already
+  stores is skipped instead of failing the sync.
 
 ### Changed
+- When Plaid Link ends with an error, the message includes Plaid's error code, not just its display text (which can
+  be as vague as "unknown error").
+- Error dialogs in the desktop app show the underlying cause instead of .NET's "Exception has been thrown by the
+  target of an invocation", and append the full exception to `desktop-error.log` next to `hoard.json`.
 - A connection's first sync always requests the full initial history window, even when it took over accounts that
   already have transactions.
 
