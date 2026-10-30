@@ -1,5 +1,18 @@
 # Hoard changelog
 
+## 3.0.1 — 2026-10-30
+
+A security patch over 3.0.0: no schema change, no installer or service change. Install `Hoard-3.0.1-x64.msi`, which
+updates every component. `installer\patch-installed.ps1` also works and patches the desktop app and the sync service,
+the two that connect at run time; the setup worker, which connects only while installing, keeps 3.0.0's driver
+until the next MSI install.
+
+### Security
+- **MySqlConnector 2.3.7 → 2.6.2** (GHSA-473q-m89c-ghf8, moderate). Before 2.6.1, a connection in zero-configuration
+  TLS mode (`SslMode=Preferred`, Hoard's default for the local server) could send the account password before the
+  server's certificate was verified, so a man-in-the-middle could read it. `Microsoft.Extensions.Logging.Abstractions`
+  and `Microsoft.Extensions.DependencyInjection.Abstractions` move to 8.0.2, which the new driver requires.
+
 ## 3.0.0 — 2026-10-30
 
 A major release: Plaid joins SimpleFIN as a bank provider, accounts can move between connections without losing their
