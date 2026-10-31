@@ -35,13 +35,25 @@ $notes = if ($end) { $lines[$start..($end - 2)] } else { $lines[$start..($lines.
 $notesFile = Join-Path $env:TEMP "hoard-release-$version.md"
 $notes | Set-Content $notesFile -Encoding UTF8
 
-if (git status --porcelain) { throw "The working tree has uncommitted changes. Commit them first." }
-if (-not (git tag --list "v$version")) {
-    git tag -a "v$version" -m "Hoard $version"
-    git push origin "v$version"
+# Windows PowerShell turns a native command's stderr into error records, and git writes ordinary progress
+# ("To https://github.com/...") to stderr, so under "Stop" a successful push aborts the script. Run native
+# commands with "Continue" and judge them by exit code instead.
+function Invoke-Native {
+    param([Parameter(Mandatory)][string]$Command, [string[]]$Arguments = @())
+    $saved = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Command @Arguments 2>&1 | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $saved }
+    if ($LASTEXITCODE -ne 0) { throw "$Command $($Arguments -join ' ') failed with exit code $LASTEXITCODE." }
 }
 
-$args = @("release", "create", "v$version", $msi, "--title", "Hoard $version", "--notes-file", $notesFile)
-if ($Draft) { $args += "--draft" }
-& gh @args
+if (git status --porcelain) { throw "The working tree has uncommitted changes. Commit them first." }
+if (-not (git tag --list "v$version")) {
+    Invoke-Native git @("tag", "-a", "v$version", "-m", "Hoard $version")
+}
+Invoke-Native git @("push", "origin", "v$version")
+
+$ghArgs = @("release", "create", "v$version", $msi, "--title", "Hoard $version", "--notes-file", $notesFile)
+if ($Draft) { $ghArgs += "--draft" }
+Invoke-Native gh $ghArgs
 Write-Host "Released Hoard $version." -ForegroundColor Green
