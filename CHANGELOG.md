@@ -1,5 +1,12 @@
 # Hoard changelog
 
+## Unreleased
+
+### Fixed
+- **Chart axis labels no longer overlap.** Currency axes space their ticks further apart, so the Dashboard's
+  "Balances by account type" labels stay readable at any window width.
+- **Account-type bar tooltips** no longer show a stray heading such as "$7"; they show the type and its balance.
+
 ## 3.0.1 — 2026-10-30
 
 A security patch over 3.0.0: no schema change, no installer or service change. Install `Hoard-3.0.1-x64.msi`, which

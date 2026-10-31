@@ -65,6 +65,9 @@ public sealed class ChartTheme
         LabelsPaint = new SolidColorPaint(Muted),
         SeparatorsPaint = new SolidColorPaint(Grid) { StrokeThickness = 1 },
         TextSize = 12,
+        // LiveCharts underestimates how wide labels like "-$100K" are and packs ticks at every $100K on a wide chart;
+        // a larger factor spaces them out so neighbouring labels never touch.
+        LabelsDensity = 2,
     };
 
     /// <summary>Axis label: $950, $12K, $1.2M - full figures crowd each other once balances reach six digits.</summary>
@@ -146,6 +149,9 @@ public sealed class ChartTheme
                 Rx = 4, Ry = 4,
                 IgnoresBarPosition = true,
                 YToolTipLabelFormatter = p => p.Coordinate.PrimaryValue.ToString("C0"),
+                // The tooltip heading would otherwise be the bar's row index run through the currency axis labeler
+                // ("$7"); the series name already says which type it is, so drop the heading.
+                XToolTipLabelFormatter = _ => LiveCharts.IgnoreToolTipLabel,
                 IsVisibleAtLegend = false,
             });
         }
