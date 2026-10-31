@@ -1,6 +1,9 @@
 # Hoard changelog
 
-## Unreleased
+## 3.0.2 — 2026-10-31
+
+A chart fix over 3.0.1: no schema change, no service change. Install `Hoard-3.0.2-x64.msi`, which upgrades any 2.x or
+3.x install in place; `installer\patch-installed.ps1` also works, since only the desktop app changed.
 
 ### Fixed
 - **Chart axis labels no longer overlap.** Currency axes space their ticks further apart, so the Dashboard's
