@@ -25,6 +25,9 @@
         <ui:ProgressRing IsIndeterminate="True" Width="20" Height="20" Margin="0,0,12,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
         <TextBlock Text="Month" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
         <ComboBox ItemsSource="{Binding MonthOptions}" SelectedItem="{Binding SelectedMonth}" DisplayMemberPath="Label" Width="170" Margin="0,0,12,0"/>
+        <TextBlock Text="Income over" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+        <ComboBox ItemsSource="{Binding IncomeRangeOptions}" SelectedItem="{Binding SelectedIncomeRange}" Width="120" Margin="0,0,12,0"
+                  ToolTip="How many complete months before this one the average income covers"/>
         <ui:Button Content="Use suggested targets" Icon="{ui:SymbolIcon Sparkle24}" Appearance="Primary" Command="{Binding UseSuggestedCommand}" Margin="0,0,8,0"
                    ToolTip="Give every category group that has no target its suggested target (the forecast, rounded up)"/>
         <ui:Button Content="Reset all…" Icon="{ui:SymbolIcon ArrowReset24}" Click="OnResetAllClick" Margin="0,0,8,0"
@@ -39,7 +42,8 @@
       </StackPanel>
     </DockPanel>
 
-    <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,-12,10">
+    <StackPanel Grid.Row="1">
+    <UniformGrid Columns="4" Margin="0,0,-12,10">
       <ui:Card Style="{StaticResource Tile}">
         <StackPanel>
           <TextBlock Text="Monthly targets" Style="{StaticResource KpiLabel}"/>
@@ -70,6 +74,34 @@
         </StackPanel>
       </ui:Card>
     </UniformGrid>
+
+    <!-- Income against the budget and the spending: positive = room to spare, negative = more out than in. -->
+    <UniformGrid Columns="3" Margin="0,0,-12,10">
+      <ui:Card Style="{StaticResource Tile}">
+        <StackPanel>
+          <TextBlock Text="{Binding SelectedIncomeRange.Label, StringFormat='Average monthly income ({0})'}" Style="{StaticResource KpiLabel}"/>
+          <TextBlock Text="{Binding AverageIncome, StringFormat=C0}" Style="{StaticResource TileValue}"/>
+          <TextBlock Text="{Binding IncomeDetail}" Style="{StaticResource KpiDetail}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </ui:Card>
+      <ui:Card Style="{StaticResource Tile}">
+        <StackPanel>
+          <TextBlock Text="Net: budget vs. income" Style="{StaticResource KpiLabel}"/>
+          <TextBlock Text="{Binding BudgetDeltaText}" Style="{StaticResource TileValue}"
+                     Foreground="{Binding BudgetDelta, Converter={StaticResource AmountToBrush}}"/>
+          <TextBlock Text="{Binding BudgetDeltaDetail}" Style="{StaticResource KpiDetail}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </ui:Card>
+      <ui:Card Style="{StaticResource Tile}">
+        <StackPanel>
+          <TextBlock Text="{Binding SpendingDeltaLabel, StringFormat='Net: {0}'}" Style="{StaticResource KpiLabel}"/>
+          <TextBlock Text="{Binding SpendingDelta, StringFormat='+$#,##0;-$#,##0;$0'}" Style="{StaticResource TileValue}"
+                     Foreground="{Binding SpendingDelta, Converter={StaticResource AmountToBrush}}"/>
+          <TextBlock Text="{Binding SpendingDeltaDetail}" Style="{StaticResource KpiDetail}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </ui:Card>
+    </UniformGrid>
+    </StackPanel>
 
     <TextBlock Grid.Row="2" Text="{Binding MonthNote}" Style="{StaticResource Note}"/>
 

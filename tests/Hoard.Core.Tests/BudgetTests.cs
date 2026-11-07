@@ -182,6 +182,41 @@ public sealed class BudgetServiceTests
     }
 
     [Fact]
+    public async Task Income_AveragesCompleteMonthsBeforeTheBudgetMonth_AndComparesWithTargetsAndSpending()
+    {
+        // Six complete months before October: 5,000 a month except an empty August (counted as zero).
+        for (var i = 1; i <= 6; i++)
+            if (i != 2) _reports.Monthly.Add(new MonthlyIncomeExpense { Month = Oct.AddMonths(-i), Income = 5000m });
+        _reports.Monthly.Add(new MonthlyIncomeExpense { Month = Oct, Income = 2500m }); // October so far: not in the average
+        _reports.Spend.Add(new MonthGroupSpend { Month = Oct, GroupId = 1, GroupName = "Food & Dining", Amount = 400m });
+        await Sut().SetTargetAsync(1, 550m, Oct);
+        await Sut().SetTargetAsync(3, 250m, Oct);
+
+        var budget = await Sut().GetMonthAsync(Oct, today: new DateOnly(2026, 10, 11));
+        var income = await Sut().IncomeAsync(budget, months: 6, today: new DateOnly(2026, 10, 11));
+
+        Assert.Equal(new DateOnly(2026, 4, 1), income.FromMonth);
+        Assert.Equal(6, income.Months);
+        Assert.Equal(5, income.MonthsWithIncome);
+        Assert.Equal(25000m / 6, income.AverageIncome, 2);
+        Assert.Equal(0m, income.LowestMonth);
+        Assert.Equal(2500m, income.MonthIncome);
+        Assert.Equal(25000m / 6 - 800m, income.BudgetDelta, 2);
+        Assert.Equal(budget.TotalProjected, income.Spending); // the current month compares its projection
+        Assert.Equal(25000m / 6 - budget.TotalProjected, income.SpendingDelta, 2);
+    }
+
+    [Fact]
+    public async Task Income_ForAFutureMonth_UsesTheMonthsBeforeTodayAndTheForecast()
+    {
+        for (var i = 1; i <= 3; i++) _reports.Monthly.Add(new MonthlyIncomeExpense { Month = Oct.AddMonths(-i), Income = 3000m });
+        var nov = await Sut().GetMonthAsync(Oct.AddMonths(1), today: new DateOnly(2026, 10, 11));
+        var income = await Sut().IncomeAsync(nov, months: 3, today: new DateOnly(2026, 10, 11));
+        Assert.Equal(3000m, income.AverageIncome);
+        Assert.Equal(nov.TotalPredicted, income.Spending);
+    }
+
+    [Fact]
     public async Task ZeroTarget_RemovesIt()
     {
         await Sut().SetTargetAsync(1, 500m, Oct);

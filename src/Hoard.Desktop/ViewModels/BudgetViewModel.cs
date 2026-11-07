@@ -80,6 +80,7 @@ public sealed partial class BudgetViewModel : ObservableObject
         MonthOptions.Add(new MonthOption(thisMonth.AddMonths(1)));
         for (var i = 0; i < 24; i++) MonthOptions.Add(new MonthOption(thisMonth.AddMonths(-i)));
         _selectedMonth = MonthOptions[1];
+        _selectedIncomeRange = IncomeRangeOptions.First(o => o.Months == BudgetService.DefaultIncomeAverageMonths);
         theme.Changed += () => { if (Rows.Count > 0) _ = LoadAsync(); }; // status brushes are resolved per load
     }
 
@@ -104,7 +105,22 @@ public sealed partial class BudgetViewModel : ObservableObject
     [ObservableProperty] private decimal _unbudgeted;
     [ObservableProperty] private bool _isCurrentMonth;
 
+    // ---------- Income ----------
+    public IReadOnlyList<RangeOption> IncomeRangeOptions { get; } =
+        BudgetService.IncomeAverageOptions.Select(m => new RangeOption($"{m} months", m)).ToList();
+    [ObservableProperty] private RangeOption _selectedIncomeRange = null!;
+    [ObservableProperty] private decimal _averageIncome;
+    [ObservableProperty] private string _incomeDetail = "";
+    [ObservableProperty] private decimal _budgetDelta;
+    /// <summary>"—" until there are targets: with none, the whole income would read as surplus.</summary>
+    [ObservableProperty] private string _budgetDeltaText = "—";
+    [ObservableProperty] private string _budgetDeltaDetail = "";
+    [ObservableProperty] private decimal _spendingDelta;
+    [ObservableProperty] private string _spendingDeltaLabel = "Spending vs. income";
+    [ObservableProperty] private string _spendingDeltaDetail = "";
+
     partial void OnSelectedMonthChanged(MonthOption value) => _ = LoadAsync();
+    partial void OnSelectedIncomeRangeChanged(RangeOption value) { if (value is not null && Rows.Count > 0) _ = LoadAsync(); }
 
     [RelayCommand]
     public async Task LoadAsync()
@@ -131,6 +147,7 @@ public sealed partial class BudgetViewModel : ObservableObject
             ActualDetail = b.IsCurrentMonth ? $"day {b.DayOfMonth} of {b.DaysInMonth}" : future ? "month not started" : "whole month";
             ProjectedDetail = b.TotalTarget > 0 ? $"{b.TotalTarget - b.TargetedProjected:+$#,##0;-$#,##0;$0} vs. targets for budgeted groups" : "";
             Unbudgeted = b.Lines.Where(l => l.Target is null).Sum(l => b.IsCurrentMonth ? l.Projected : l.Actual);
+            ShowIncome(await _budget.IncomeAsync(b, SelectedIncomeRange.Months ?? BudgetService.DefaultIncomeAverageMonths), b, future);
             MonthNote = (b.IsCurrentMonth
                     ? $"{month:MMMM yyyy} is in progress: \"Projected\" is what is spent so far plus the forecast for the {b.DaysInMonth - b.DayOfMonth} day(s) left. "
                     : future ? $"Planning {month:MMMM yyyy}. " : $"{month:MMMM yyyy} is finished; targets shown are the ones that applied then. ") +
@@ -144,6 +161,23 @@ public sealed partial class BudgetViewModel : ObservableObject
             IsBusy = false;
             _loading = false;
         }
+    }
+
+    private void ShowIncome(BudgetIncome income, BudgetMonth b, bool future)
+    {
+        AverageIncome = income.AverageIncome;
+        IncomeDetail = $"{income.FromMonth:MMM yyyy}–{income.ToMonthExclusive.AddMonths(-1):MMM yyyy} · range {income.LowestMonth:C0}–{income.HighestMonth:C0}" +
+                       (income.MonthsWithIncome < income.Months ? $" · {income.Months - income.MonthsWithIncome} month(s) with none" : "") +
+                       (future ? "" : $" · {income.MonthIncome:C0} received in {b.Month:MMM}");
+        BudgetDelta = b.TotalTarget == 0 ? 0 : income.BudgetDelta;
+        BudgetDeltaText = b.TotalTarget == 0 ? "—" : income.BudgetDelta.ToString("+$#,##0;-$#,##0;$0", System.Globalization.CultureInfo.CurrentCulture);
+        BudgetDeltaDetail = b.TotalTarget == 0
+            ? "set targets to compare them with income"
+            : $"{b.TotalTarget:C0} of targets" + (income.AverageIncome > 0 ? $" = {b.TotalTarget / income.AverageIncome:0%} of income" : "");
+        SpendingDelta = income.SpendingDelta;
+        var what = future ? "forecast" : b.IsCurrentMonth ? "projected" : "spent";
+        SpendingDeltaLabel = future ? "Forecast spending vs. income" : b.IsCurrentMonth ? "Projected spending vs. income" : "Actual spending vs. income";
+        SpendingDeltaDetail = $"{income.Spending:C0} {what}" + (income.AverageIncome > 0 ? $" = {income.Spending / income.AverageIncome:0%} of income" : "");
     }
 
     private async Task CommitTargetAsync(BudgetRowItem row)

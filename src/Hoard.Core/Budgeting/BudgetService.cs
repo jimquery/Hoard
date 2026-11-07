@@ -91,6 +91,32 @@ public sealed class BudgetMonth
     public decimal TargetedProjected => Lines.Where(l => l.Target is not null).Sum(l => l.Projected);
 }
 
+/// <summary>
+/// Average monthly income over the complete months before a budget month, and how the budget and the spending compare
+/// with it. Income is measured as the Income vs. expenses report does (spending-report accounts; income categories plus
+/// uncategorized money in; transfers excluded).
+/// </summary>
+public sealed class BudgetIncome
+{
+    public DateOnly FromMonth { get; init; }
+    /// <summary>Exclusive: the budget month itself is not part of the average.</summary>
+    public DateOnly ToMonthExclusive { get; init; }
+    public int Months { get; init; }
+    /// <summary>Months in the window that had any income at all (an empty month still counts as zero in the average).</summary>
+    public int MonthsWithIncome { get; init; }
+    public decimal AverageIncome { get; init; }
+    public decimal LowestMonth { get; init; }
+    public decimal HighestMonth { get; init; }
+    /// <summary>Income actually received in the budget month (so far, for the current month).</summary>
+    public decimal MonthIncome { get; init; }
+    /// <summary>Average income minus the month's targets: positive = the budget fits inside income.</summary>
+    public decimal BudgetDelta { get; init; }
+    /// <summary>Average income minus the month's spending (projected for the current month, forecast for a future one).</summary>
+    public decimal SpendingDelta { get; init; }
+    /// <summary>The spending figure <see cref="SpendingDelta"/> used.</summary>
+    public decimal Spending { get; init; }
+}
+
 /// <summary>Target and actual for one group in one month, for the target-vs-actual history.</summary>
 public sealed record BudgetHistoryPoint(DateOnly Month, long? GroupId, string GroupName, decimal? Target, decimal Actual);
 
@@ -172,6 +198,40 @@ public sealed class BudgetService
             DayOfMonth = dayOfMonth,
             DaysInMonth = daysInMonth,
             Lines = lines.OrderByDescending(l => l.Target ?? 0).ThenByDescending(l => l.Forecast.Predicted).ThenBy(l => l.GroupName).ToList(),
+        };
+    }
+
+    public static IReadOnlyList<int> IncomeAverageOptions { get; } = [3, 6, 12];
+    public const int DefaultIncomeAverageMonths = 6;
+
+    /// <summary>
+    /// Average monthly income over the <paramref name="months"/> complete months before <paramref name="budget"/>'s month
+    /// (before the current month when planning a future one), against the budget's targets and its spending.
+    /// </summary>
+    public async Task<BudgetIncome> IncomeAsync(BudgetMonth budget, int months = DefaultIncomeAverageMonths, DateOnly? today = null, CancellationToken ct = default)
+    {
+        months = Math.Clamp(months, 1, 36);
+        var now = MonthOf(today ?? DateOnly.FromDateTime(DateTime.Today));
+        var end = budget.Month > now ? now : budget.Month;
+        var from = end.AddMonths(-months);
+        var rows = await _reports.MonthlyIncomeExpenseAsync(from, budget.Month.AddMonths(1), ct);
+        var window = Enumerable.Range(0, months).Select(i => from.AddMonths(i))
+            .Select(m => rows.FirstOrDefault(r => r.Month == m)?.Income ?? 0m).ToList();
+        var average = window.Average();
+        var spending = budget.Month > now ? budget.TotalPredicted : budget.IsCurrentMonth ? budget.TotalProjected : budget.TotalActual;
+        return new BudgetIncome
+        {
+            FromMonth = from,
+            ToMonthExclusive = end,
+            Months = months,
+            MonthsWithIncome = window.Count(v => v > 0),
+            AverageIncome = Math.Round(average, 2),
+            LowestMonth = window.Min(),
+            HighestMonth = window.Max(),
+            MonthIncome = rows.FirstOrDefault(r => r.Month == budget.Month)?.Income ?? 0m,
+            BudgetDelta = Math.Round(average - budget.TotalTarget, 2),
+            SpendingDelta = Math.Round(average - spending, 2),
+            Spending = spending,
         };
     }
 
