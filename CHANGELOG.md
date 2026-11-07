@@ -1,8 +1,10 @@
 # Hoard changelog
 
-## Unreleased
+## 3.1.0 — 2026-11-07
 
-Adds migration 0012 (duplicate transactions); it runs automatically on first start.
+Duplicate transactions, a weekly spending email with AI analysis, automatic daily sync, income on the Budget page,
+and working drill-down across Reports. Adds migration 0012 (duplicate transactions), which runs automatically on
+first start. Install `Hoard-3.1.0-x64.msi`; it upgrades any 2.x or 3.x install in place.
 
 ### Added
 - **Duplicate transactions.** Mark a transaction as a duplicate (Transactions page, new Duplicate column) and it is kept
