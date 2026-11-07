@@ -1,5 +1,33 @@
 # Hoard changelog
 
+## Unreleased
+
+Adds migration 0012 (duplicate transactions); it runs automatically on first start.
+
+### Added
+- **Duplicate transactions.** Mark a transaction as a duplicate (Transactions page, new Duplicate column) and it is kept
+  but left out of every report, budget, the dashboard and the AI advisor. A show/hide/only-duplicates filter lets a mark
+  be found and undone.
+- **Reports › Possible duplicates.** Finds transactions on the same account for the same amount and vendor posted within
+  a chosen number of days (default 2); checks with different numbers never match. Tick the extra copies (or "Select
+  suggested") and save them in bulk; "Not duplicates" stops a group from being offered again.
+- **Automatic daily sync.** While Hoard is open it syncs every institution once a day at a set time (Settings › Sync;
+  on by default at 07:00). If Hoard was closed then, it syncs soon after it next starts that day.
+- **Reports › Weekly spending.** The last seven days against the previous week and the 4- and 12-week averages, by day,
+  by category group, top merchants and largest charges, budget month to date, and Claude's analysis of trends with ways
+  to spend less (uses the AI Advisor's key). Email it now or on a weekly schedule to a list of recipients; preview the
+  email in the browser. Outgoing mail is set up under Settings › Email (SMTP; Gmail with an app password).
+- **Budget: income.** Average monthly income over the last 3, 6 or 12 complete months, and net deltas of income against
+  the budget targets and against actual (or projected) spending.
+
+### Fixed
+- **Spending report drill-down.** Clicking a donut slice now drills into that group, and clicking a bar in the 12-month
+  chart opens the group actually clicked (it always opened Bills & Utilities). Chart clicks across Reports hit-test the
+  shape under the pointer.
+- **Reports silently showing stale data.** A category group or account type named "Other" broke the Spending and Net
+  worth charts, uncategorized spending broke the budget history (and every report after it), and reloads started by a
+  selection change swallowed their errors. All three are fixed; report errors are shown and logged.
+
 ## 3.0.2 — 2026-10-31
 
 A chart fix over 3.0.1: no schema change, no service change. Install `Hoard-3.0.2-x64.msi`, which upgrades any 2.x or

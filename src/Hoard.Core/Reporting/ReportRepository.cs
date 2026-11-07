@@ -71,6 +71,11 @@ public interface IReportRepository
     /// detection: not pending, not hidden, and not in a Transfer or Income category (card payments recur too).
     /// </summary>
     Task<IReadOnlyList<SpendingTransactionRow>> ListSpendingTransactionsAsync(DateTime fromUtc, CancellationToken ct = default);
+    /// <summary>
+    /// Spending in [<paramref name="from"/>, <paramref name="toExclusive"/>) exactly as the Spending report counts it
+    /// (expense categories, refunds included, plus uncategorized money out), one row per transaction with its group.
+    /// </summary>
+    Task<IReadOnlyList<SpendingActivityRow>> ListSpendingActivityAsync(DateOnly from, DateOnly toExclusive, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -240,6 +245,24 @@ public sealed class ReportRepository : IReportRepository
                AND (c.kind IS NULL OR c.kind = @expense)
              ORDER BY t.posted_at_utc
             """, new { fromUtc, expense = CategoryKind.Expense })).ToList();
+    }
+
+    public async Task<IReadOnlyList<SpendingActivityRow>> ListSpendingActivityAsync(DateOnly from, DateOnly toExclusive, CancellationToken ct = default)
+    {
+        using var c = await _f.OpenAsync(ct);
+        return (await c.QueryAsync<SpendingActivityRow>("""
+            SELECT t.id, COALESCE(NULLIF(a.display_name, ''), a.name) AS account_name, t.posted_at_utc, -t.amount AS spent,
+                   t.description, t.payee, c.name AS category_name, COALESCE(p.name, c.name, 'Uncategorized') AS group_name
+              FROM transactions t
+              JOIN accounts a ON a.id = t.account_id
+              JOIN account_categories acat ON acat.id = a.category_id AND acat.include_in_spending = 1
+              LEFT JOIN transaction_categories c ON c.id = t.category_id
+              LEFT JOIN transaction_categories p ON p.id = c.parent_id
+             WHERE t.is_pending = 0 AND t.is_duplicate = 0 AND a.is_hidden = 0
+               AND t.posted_at_utc >= @from AND t.posted_at_utc < @to
+               AND (c.kind = @expense OR (c.kind IS NULL AND t.amount < 0))
+             ORDER BY t.posted_at_utc, t.id
+            """, new { from = ToDateTime(from), to = ToDateTime(toExclusive), expense = CategoryKind.Expense })).ToList();
     }
 
     private static DateTime ToDateTime(DateOnly d) => d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);

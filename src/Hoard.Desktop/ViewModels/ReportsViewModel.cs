@@ -136,7 +136,7 @@ public sealed partial class CollegeRow : ObservableObject
 /// </summary>
 public sealed partial class ReportsViewModel : ObservableObject
 {
-    public const int NetWorthTab = 0, IncomeTab = 1, SpendingTab = 2, BudgetTab = 3, DuplicatesTab = 7;
+    public const int NetWorthTab = 0, IncomeTab = 1, SpendingTab = 2, BudgetTab = 3, DuplicatesTab = 7, WeeklyTab = 8;
 
     private readonly ReportingService _reports;
     private readonly IAccountRepository _accounts;
@@ -149,9 +149,11 @@ public sealed partial class ReportsViewModel : ObservableObject
     private const string OtherGroupsName = "All other groups";
     private const string OtherTypesName = "All other types";
 
-    public ReportsViewModel(ReportingService reports, IAccountRepository accounts, BudgetService budget, ThemeService theme, DuplicatesViewModel duplicates)
+    public ReportsViewModel(ReportingService reports, IAccountRepository accounts, BudgetService budget, ThemeService theme, DuplicatesViewModel duplicates,
+        WeeklyReportViewModel weekly)
     {
         Duplicates = duplicates;
+        Weekly = weekly;
         Duplicates.Saved += () => { DuplicatesChanged?.Invoke(); Run(LoadAllAsync); };
         _reports = reports;
         _accounts = accounts;
@@ -198,6 +200,8 @@ public sealed partial class ReportsViewModel : ObservableObject
 
     /// <summary>Reports › Possible duplicates.</summary>
     public DuplicatesViewModel Duplicates { get; }
+    /// <summary>Reports › Weekly spending (and its email schedule).</summary>
+    public WeeklyReportViewModel Weekly { get; }
     /// <summary>Raised after duplicates were marked or unmarked, so the other pages refresh.</summary>
     public event Action? DuplicatesChanged;
 
@@ -205,6 +209,7 @@ public sealed partial class ReportsViewModel : ObservableObject
     partial void OnSelectedReportIndexChanged(int value)
     {
         if (value == DuplicatesTab && !Duplicates.HasPendingChanges && !Duplicates.IsBusy) Run(Duplicates.LoadAsync, "Possible duplicates");
+        if (value == WeeklyTab) { Weekly.RefreshSummary(); Run(Weekly.EnsureLoadedAsync, "Weekly spending"); }
     }
 
     // ---------- Net worth ----------

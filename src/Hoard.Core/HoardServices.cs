@@ -56,6 +56,9 @@ public static class HoardServices
             sp.GetRequiredService<ReportingService>(), sp.GetRequiredService<IReportRepository>(), sp.GetRequiredService<BudgetService>(),
             sp.GetRequiredService<ITransactionRepository>(), sp.GetRequiredService<ICategoryRepository>(), sp.GetRequiredService<IHouseholdRepository>()));
         services.AddSingleton<AdvisorService>();
+        services.AddSingleton<Email.SmtpEmailSender>();
+        services.AddSingleton<Email.IEmailSender>(sp => sp.GetRequiredService<Email.SmtpEmailSender>());
+        services.AddSingleton<Reporting.Weekly.WeeklyReportService>();
 
         services.AddSingleton(sp =>
         {

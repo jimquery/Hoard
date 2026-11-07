@@ -55,8 +55,18 @@
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-              <RowDefinition/><RowDefinition/><RowDefinition/>
+              <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
             </Grid.RowDefinitions>
+            <TextBlock Grid.Row="3" Text="Automatic daily sync" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,4">
+              <StackPanel Orientation="Horizontal">
+                <CheckBox Content="While Hoard is open, sync every institution once a day at" IsChecked="{Binding DailySyncEnabled}" VerticalAlignment="Center"/>
+                <ui:TextBox Text="{Binding DailySyncTime, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="8,0,0,0" PlaceholderText="07:00"
+                            ToolTip="24-hour time, e.g. 07:00 or 18:30"/>
+              </StackPanel>
+              <TextBlock Text="{Binding NextDailySyncText}" Style="{StaticResource Muted}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+              <TextBlock Text="If Hoard was closed at that time, it syncs soon after it next opens that day." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+            </StackPanel>
             <TextBlock Grid.Row="0" Text="Background refresh" VerticalAlignment="Center"/>
             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
               <TextBlock Text="every" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -72,6 +82,62 @@
             <CheckBox Grid.Row="2" Grid.Column="1" Content="Download pending transactions (they are replaced when they post)" IsChecked="{Binding IncludePending}" Margin="0,4"/>
           </Grid>
           <ui:Button Content="Save sync settings" Appearance="Primary" Command="{Binding SaveSyncCommand}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+        </StackPanel>
+      </ui:Card>
+
+      <TextBlock Text="Email" Style="{StaticResource SectionTitle}"/>
+      <ui:Card Padding="16,12">
+        <StackPanel>
+          <TextBlock Text="Outgoing mail for the weekly spending report (Reports › Weekly spending). Gmail works with an app password." Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="SMTP server" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <ui:TextBox Text="{Binding SmtpHost, UpdateSourceTrigger=PropertyChanged}" Width="220"/>
+              <TextBlock Text="port" VerticalAlignment="Center" Margin="10,0,6,0" Style="{StaticResource Muted}"/>
+              <ui:TextBox Text="{Binding SmtpPort, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+              <CheckBox Content="STARTTLS" IsChecked="{Binding SmtpStartTls}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+              <ui:Button Content="Use Gmail" Command="{Binding UseGmailCommand}" Margin="12,0,0,0"/>
+            </StackPanel>
+            <TextBlock Grid.Row="1" Text="Username" VerticalAlignment="Center"/>
+            <ui:TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SmtpUser, UpdateSourceTrigger=PropertyChanged}" Width="300" HorizontalAlignment="Left" Margin="0,4"
+                        PlaceholderText="you@gmail.com"/>
+            <TextBlock Grid.Row="2" Text="Password" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <PasswordBox x:Name="SmtpPasswordBox" Width="300" PasswordChanged="OnSmtpPasswordChanged"/>
+              <TextBlock VerticalAlignment="Center" Margin="10,0,0,0">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                    <Setter Property="Text" Value="no password stored yet"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding HasEmailPassword}" Value="True"><Setter Property="Text" Value="stored (sealed in the database); leave blank to keep it"/></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </StackPanel>
+            <TextBlock Grid.Row="3" Text="From" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <ui:TextBox Text="{Binding SmtpFromName, UpdateSourceTrigger=PropertyChanged}" Width="140" PlaceholderText="Hoard"/>
+              <ui:TextBox Text="{Binding SmtpFrom, UpdateSourceTrigger=PropertyChanged}" Width="250" Margin="8,0,0,0" PlaceholderText="address (blank = username)"/>
+            </StackPanel>
+            <TextBlock Grid.Row="4" Text="Test" VerticalAlignment="Center"/>
+            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+              <ui:TextBox Text="{Binding TestAddress, UpdateSourceTrigger=PropertyChanged}" Width="300" PlaceholderText="send a test to…"/>
+              <ui:Button Content="Send test email" Icon="{ui:SymbolIcon Mail24}" Command="{Binding SendTestEmailCommand}" Margin="8,0,0,0"/>
+            </StackPanel>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <ui:Button Content="Save email settings" Appearance="Primary" Command="{Binding SaveEmailCommand}"/>
+            <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="12,0,0,0" Visibility="{Binding EmailBusy, Converter={StaticResource BoolToVis}}"/>
+          </StackPanel>
+          <TextBlock Text="{Binding EmailStatus}" Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
         </StackPanel>
       </ui:Card>
 

@@ -615,6 +615,170 @@
           </ui:Card>
         </DockPanel>
       </TabItem>
+
+      <!-- ============================== Weekly spending ============================== -->
+      <TabItem Header="Weekly spending">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding Weekly}">
+          <StackPanel Margin="0,8,0,0">
+            <DockPanel Margin="0,0,0,8">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="0,0,8,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="{Binding BusyText}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <ui:Button Content="Analyze with AI" Icon="{ui:SymbolIcon Sparkle24}" Command="{Binding AnalyzeCommand}" Margin="0,0,8,0"
+                           ToolTip="Ask Claude (the AI Advisor's key and model) for trends and ways to spend less"/>
+                <ui:Button Content="Preview email" Icon="{ui:SymbolIcon Mail24}" Command="{Binding PreviewEmailCommand}" Margin="0,0,8,0"
+                           ToolTip="Open the email in your browser exactly as it would be sent"/>
+                <ui:Button Content="Send now" Icon="{ui:SymbolIcon Send24}" Appearance="Primary" Command="{Binding SendNowCommand}"
+                           ToolTip="Email this week's report to the recipients below"/>
+              </StackPanel>
+              <WrapPanel>
+                <TextBlock Text="Week" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+                <ComboBox ItemsSource="{Binding WeekOptions}" SelectedItem="{Binding SelectedWeek}" Width="220" Margin="0,0,8,0"/>
+                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" Appearance="Transparent"/>
+              </WrapPanel>
+            </DockPanel>
+            <TextBlock Text="{Binding Status}" Style="{StaticResource Note}" TextWrapping="Wrap"/>
+
+            <UniformGrid Columns="4" Margin="0,0,-12,10">
+              <ui:Card Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Spent this week" Style="{StaticResource KpiLabel}"/>
+                  <TextBlock Text="{Binding TotalText}" Style="{StaticResource TileValue}"/>
+                  <TextBlock Text="{Binding TotalDetail}" Style="{StaticResource KpiDetail}"/>
+                </StackPanel>
+              </ui:Card>
+              <ui:Card Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="vs. previous week" Style="{StaticResource KpiLabel}"/>
+                  <TextBlock Text="{Binding VsPriorWeek, StringFormat='+$#,##0;-$#,##0;$0'}" Style="{StaticResource TileValue}"
+                             Foreground="{Binding VsPriorWeek, Converter={StaticResource SpendChangeToBrush}}"/>
+                  <TextBlock Text="{Binding PriorDetail}" Style="{StaticResource KpiDetail}"/>
+                </StackPanel>
+              </ui:Card>
+              <ui:Card Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="vs. 4-week average" Style="{StaticResource KpiLabel}"/>
+                  <TextBlock Text="{Binding VsFourWeek, StringFormat='+$#,##0;-$#,##0;$0'}" Style="{StaticResource TileValue}"
+                             Foreground="{Binding VsFourWeek, Converter={StaticResource SpendChangeToBrush}}"/>
+                  <TextBlock Text="{Binding FourWeekDetail}" Style="{StaticResource KpiDetail}"/>
+                </StackPanel>
+              </ui:Card>
+              <ui:Card Style="{StaticResource Tile}">
+                <StackPanel>
+                  <TextBlock Text="Share of income" Style="{StaticResource KpiLabel}"/>
+                  <TextBlock Text="{Binding IncomeText}" Style="{StaticResource TileValue}"/>
+                  <TextBlock Text="{Binding IncomeDetail}" Style="{StaticResource KpiDetail}"/>
+                </StackPanel>
+              </ui:Card>
+            </UniformGrid>
+
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="2*"/>
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Grid.Column="0">
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Last 13 weeks" Style="{StaticResource CardTitle}"/>
+                    <lvc:CartesianChart Series="{Binding TrendSeries}" XAxes="{Binding TrendXAxes}" YAxes="{Binding TrendYAxes}"
+                                        FindingStrategy="CompareOnlyX" LegendPosition="Bottom" TooltipPosition="Top" Height="240"/>
+                  </DockPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Analysis and ways to spend less" Style="{StaticResource CardTitle}"/>
+                    <controls:MarkdownView Markdown="{Binding AiMarkdown}" Margin="0,4,0,0"/>
+                  </StackPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="By category group (this week vs. the 4 weeks before)" Style="{StaticResource CardTitle}"/>
+                    <DataGrid ItemsSource="{Binding Groups}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Group" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="This week" Binding="{Binding Amount, StringFormat=C0}" Width="95" ElementStyle="{StaticResource RightCell}"/>
+                        <DataGridTextColumn Header="4-wk avg" Binding="{Binding FourWeekAverage, StringFormat=C0}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                        <DataGridTemplateColumn Header="Change" Width="90">
+                          <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Text="{Binding Change, StringFormat='+$#,##0;-$#,##0;$0'}" HorizontalAlignment="Right"
+                                         Foreground="{Binding Change, Converter={StaticResource SpendChangeToBrush}}"/>
+                            </DataTemplate>
+                          </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Share" Binding="{Binding Share, StringFormat=P0}" Width="64" ElementStyle="{StaticResource RightCell}"/>
+                      </DataGrid.Columns>
+                    </DataGrid>
+                  </StackPanel>
+                </ui:Card>
+              </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Email schedule" Style="{StaticResource CardTitle}"/>
+                    <CheckBox Content="Email this report every week" IsChecked="{Binding ScheduleEnabled}" Margin="0,4"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                      <TextBlock Text="on" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+                      <ComboBox ItemsSource="{Binding DayOptions}" SelectedItem="{Binding SelectedDay}" Width="130" Margin="0,0,8,0"/>
+                      <TextBlock Text="at" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+                      <ui:TextBox Text="{Binding ScheduleTime, UpdateSourceTrigger=PropertyChanged}" Width="80" PlaceholderText="07:00" ToolTip="24-hour time"/>
+                    </StackPanel>
+                    <TextBlock Text="Recipients" Style="{StaticResource Muted}" Margin="0,6,0,2"/>
+                    <ui:TextBox Text="{Binding RecipientsText, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="name@example.com; other@example.com"
+                                TextWrapping="Wrap" AcceptsReturn="False"/>
+                    <CheckBox Content="Include Claude's analysis and suggestions" IsChecked="{Binding IncludeAi}" Margin="0,8,0,0"
+                              ToolTip="Uses the AI Advisor's Anthropic key; each report is one advisor request"/>
+                    <ui:Button Content="Save schedule" Appearance="Primary" Command="{Binding SaveScheduleCommand}" Margin="0,10,0,0"/>
+                    <TextBlock Text="{Binding ScheduleSummary}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Text="The report sent on a given day covers the seven days before it. Hoard sends it while it is open; if it was closed, the email goes out when Hoard next starts."/>
+                    <ui:Button Content="Set up outgoing email…" Icon="{ui:SymbolIcon Mail24}" Command="{Binding GoToEmailSettingsCommand}" Margin="0,8,0,0"
+                               Visibility="{Binding EmailNotConfigured, Converter={StaticResource BoolToVis}}"/>
+                  </StackPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Budget this month" Style="{StaticResource CardTitle}"/>
+                    <TextBlock Text="{Binding BudgetText}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Top merchants" Style="{StaticResource CardTitle}"/>
+                    <DataGrid ItemsSource="{Binding Merchants}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Merchant" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Times" Binding="{Binding Count}" Width="60" ElementStyle="{StaticResource RightCell}"/>
+                        <DataGridTextColumn Header="Spent" Binding="{Binding Amount, StringFormat=C0}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                      </DataGrid.Columns>
+                    </DataGrid>
+                  </StackPanel>
+                </ui:Card>
+                <ui:Card Style="{StaticResource ChartCard}" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock Text="Largest charges" Style="{StaticResource CardTitle}"/>
+                    <DataGrid ItemsSource="{Binding Largest}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat=ddd M/d}" Width="70"/>
+                        <DataGridTextColumn Header="Merchant" Binding="{Binding Merchant}" Width="*"/>
+                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120"/>
+                        <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=C2}" Width="90" ElementStyle="{StaticResource RightCell}"/>
+                      </DataGrid.Columns>
+                    </DataGrid>
+                  </StackPanel>
+                </ui:Card>
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
     </TabControl>
   </Grid>
 </UserControl>

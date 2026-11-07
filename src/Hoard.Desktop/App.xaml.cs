@@ -62,6 +62,7 @@ public partial class App : Application
         var main = new MainWindow { DataContext = Services.GetRequiredService<MainViewModel>() };
         main.Closed += (_, _) => Shutdown();
         main.Show();
+        Services.GetRequiredService<DesktopScheduler>().Start();
     }
 
     /// <summary>
@@ -82,6 +83,8 @@ public partial class App : Application
         services.AddHoardCore(settings);
         services.AddSingleton(theme);
         services.AddSingleton<DuplicatesViewModel>();
+        services.AddSingleton<WeeklyReportViewModel>();
+        services.AddSingleton<DesktopScheduler>();
         services.AddSingleton<ReportsViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<SettingsViewModel>();

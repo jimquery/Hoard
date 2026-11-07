@@ -157,6 +157,20 @@ public sealed class SpendingTransactionRow
     public string? CategoryName { get; init; }
 }
 
+/// <summary>One spending transaction with its category group, measured as the Spending report measures it.</summary>
+public sealed class SpendingActivityRow
+{
+    public long Id { get; init; }
+    public string AccountName { get; init; } = "";
+    public DateTime PostedAtUtc { get; init; }
+    /// <summary>Money spent, positive; a refund in an expense category is negative.</summary>
+    public decimal Spent { get; init; }
+    public string Description { get; init; } = "";
+    public string? Payee { get; init; }
+    public string? CategoryName { get; init; }
+    public string GroupName { get; init; } = "Uncategorized";
+}
+
 public enum SubscriptionCadence
 {
     Monthly = 1,

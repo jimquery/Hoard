@@ -190,6 +190,7 @@ public sealed partial class MainViewModel : ObservableObject
         Budget = budget;
         Advisor = advisor;
         Reports.ShowTransactions = ShowTransactionsAsync;
+        Reports.Weekly.OpenSettings = () => CurrentPage = AppPage.Settings;
         Budget.OpenReport = () => { Reports.SelectedReportIndex = ReportsViewModel.BudgetTab; CurrentPage = AppPage.Reports; };
         Budget.TargetsChanged += () => ReportsNeedRefresh = true;
         Dashboard = dashboard;

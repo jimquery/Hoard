@@ -140,6 +140,9 @@ public sealed class FakeReportRepository : IReportRepository
     public List<MonthGroupSpend> Spend { get; } = new();
     public Task<IReadOnlyList<MonthGroupSpend>> MonthlySpendingByGroupAsync(DateOnly fromMonth, DateOnly toMonthExclusive, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<MonthGroupSpend>>(Spend.Where(s => s.Month >= fromMonth && s.Month < toMonthExclusive).ToList());
+    public List<SpendingActivityRow> Activity { get; } = new();
+    public Task<IReadOnlyList<SpendingActivityRow>> ListSpendingActivityAsync(DateOnly from, DateOnly toExclusive, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<SpendingActivityRow>>(Activity.Where(r => DateOnly.FromDateTime(r.PostedAtUtc) >= from && DateOnly.FromDateTime(r.PostedAtUtc) < toExclusive).ToList());
     public List<SpendingTransactionRow> Spending { get; } = new();
     public Task<IReadOnlyList<SpendingTransactionRow>> ListSpendingTransactionsAsync(DateTime fromUtc, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<SpendingTransactionRow>>(Spending.Where(r => r.PostedAtUtc >= fromUtc).ToList());

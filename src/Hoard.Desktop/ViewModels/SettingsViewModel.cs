@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Hoard.Core.Configuration;
 using Hoard.Core.Data;
+using Hoard.Core.Email;
+using Hoard.Core.Scheduling;
 using Hoard.Core.Security;
 using Hoard.Desktop.Services;
 
@@ -15,12 +17,23 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly HoardSettings _settings;
     private readonly ThemeService _theme;
     private readonly ISecretProtector _protector;
+    private readonly SmtpEmailSender _email;
 
-    public SettingsViewModel(HoardSettings settings, ThemeService theme, ISecretProtector protector)
+    public SettingsViewModel(HoardSettings settings, ThemeService theme, ISecretProtector protector, SmtpEmailSender email)
     {
         _settings = settings;
         _theme = theme;
         _protector = protector;
+        _email = email;
+        _dailySyncEnabled = settings.Sync.DailySyncEnabled;
+        _dailySyncTime = Schedules.FormatTime(Schedules.ParseTime(settings.Sync.DailySyncTime, new TimeOnly(7, 0)));
+        _smtpHost = settings.Email.SmtpHost;
+        _smtpPort = settings.Email.SmtpPort;
+        _smtpStartTls = settings.Email.UseStartTls;
+        _smtpUser = settings.Email.Username ?? "";
+        _smtpFrom = settings.Email.FromAddress ?? "";
+        _smtpFromName = settings.Email.FromName;
+        _testAddress = settings.Email.Username ?? "";
         _dbHost = settings.Database.Host;
         _dbPort = settings.Database.Port;
         _dbName = settings.Database.DatabaseName;
@@ -45,7 +58,102 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _intervalMinutes;
     [ObservableProperty] private int _initialHistoryDays;
     [ObservableProperty] private bool _includePending;
+    /// <summary>The desktop app syncs every institution once a day at this time while it is open.</summary>
+    [ObservableProperty] private bool _dailySyncEnabled;
+    [ObservableProperty] private string _dailySyncTime;
     [ObservableProperty] private string _status = "";
+
+    public string NextDailySyncText
+    {
+        get
+        {
+            if (!_settings.Sync.DailySyncEnabled) return "Automatic daily sync is off.";
+            var at = Schedules.ParseTime(_settings.Sync.DailySyncTime, new TimeOnly(7, 0));
+            var latest = Schedules.LatestDaily(DateTime.Now, at);
+            var next = Schedules.IsDue(latest, _settings.Sync.LastDailySyncFor) ? DateTime.Now : Schedules.NextDaily(DateTime.Now, at);
+            return (next <= DateTime.Now.AddMinutes(1) ? "Next automatic sync: within a minute" : $"Next automatic sync: {next:dddd h:mm tt}") +
+                   (_settings.Sync.LastDailySyncFor is { } last ? $" · last automatic sync {last:ddd MMM d}." : ".");
+        }
+    }
+
+    /// <summary>Called by the scheduler after an automatic sync, so the line under the setting stays current.</summary>
+    public void RefreshSchedules() => OnPropertyChanged(nameof(NextDailySyncText));
+
+    // ----- Outgoing email (weekly report) -----
+    [ObservableProperty] private string _smtpHost;
+    [ObservableProperty] private int _smtpPort;
+    [ObservableProperty] private bool _smtpStartTls;
+    [ObservableProperty] private string _smtpUser;
+    [ObservableProperty] private string _smtpFrom;
+    [ObservableProperty] private string _smtpFromName;
+    [ObservableProperty] private string _testAddress;
+    [ObservableProperty] private string _emailStatus = "";
+    [ObservableProperty] private bool _emailBusy;
+    [ObservableProperty] private bool _hasEmailPassword;
+    /// <summary>Set from the PasswordBox; blank keeps the stored password.</summary>
+    public string SmtpPassword { get; set; } = "";
+
+    /// <summary>Reads whether a password is stored (it lives in the database, so this runs when the page opens).</summary>
+    public async Task LoadEmailAsync()
+    {
+        try { HasEmailPassword = await _email.HasPasswordAsync(); }
+        catch (Exception ex) { EmailStatus = ex.Message; }
+    }
+
+    [RelayCommand]
+    private void UseGmail()
+    {
+        SmtpHost = EmailSettings.GmailHost;
+        SmtpPort = 587;
+        SmtpStartTls = true;
+        EmailStatus = "Gmail: use your Gmail address as the username and an app password (myaccount.google.com/apppasswords; needs 2-Step Verification), not your normal password.";
+    }
+
+    private void ApplyEmail()
+    {
+        var e = _settings.Email;
+        e.SmtpHost = SmtpHost.Trim();
+        e.SmtpPort = Math.Clamp(SmtpPort, 1, 65535);
+        e.UseStartTls = SmtpStartTls;
+        e.Username = string.IsNullOrWhiteSpace(SmtpUser) ? null : SmtpUser.Trim();
+        e.FromAddress = string.IsNullOrWhiteSpace(SmtpFrom) ? null : SmtpFrom.Trim();
+        e.FromName = string.IsNullOrWhiteSpace(SmtpFromName) ? "Hoard" : SmtpFromName.Trim();
+    }
+
+    [RelayCommand]
+    private async Task SaveEmailAsync()
+    {
+        EmailBusy = true;
+        try
+        {
+            ApplyEmail();
+            if (!string.IsNullOrEmpty(SmtpPassword)) await _email.SetPasswordAsync(SmtpPassword);
+            SettingsStore.Save(_settings);
+            HasEmailPassword = await _email.HasPasswordAsync();
+            EmailStatus = HasEmailPassword ? "Email settings saved." : "Email settings saved. Enter the password too.";
+        }
+        catch (Exception ex) { EmailStatus = "Not saved — " + ex.Message; }
+        finally { EmailBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task SendTestEmailAsync()
+    {
+        EmailBusy = true;
+        try
+        {
+            ApplyEmail();
+            if (!string.IsNullOrEmpty(SmtpPassword)) await _email.SetPasswordAsync(SmtpPassword);
+            SettingsStore.Save(_settings);
+            HasEmailPassword = await _email.HasPasswordAsync();
+            await _email.SendAsync([TestAddress], "Hoard test email",
+                "<p style=\"font-family:Segoe UI,Arial,sans-serif\">Hoard can send email. The weekly spending report will arrive like this.</p>",
+                "Hoard can send email. The weekly spending report will arrive like this.");
+            EmailStatus = $"Test email sent to {TestAddress}. Settings saved.";
+        }
+        catch (Exception ex) { EmailStatus = ex.Message; }
+        finally { EmailBusy = false; }
+    }
 
     public string SettingsPath => SettingsStore.DefaultPath;
     public string DatabaseText => $"{_settings.Database.User}@{_settings.Database.Host}:{_settings.Database.Port}/{_settings.Database.DatabaseName}";
@@ -142,9 +250,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Sync.IntervalMinutes = Math.Clamp(IntervalMinutes, 15, 24 * 60);
         _settings.Sync.InitialHistoryDays = Math.Clamp(InitialHistoryDays, 30, 3650);
         _settings.Sync.IncludePending = IncludePending;
+        var at = Schedules.ParseTime(DailySyncTime, new TimeOnly(7, 0));
+        var timeChanged = _settings.Sync.DailySyncTime != Schedules.FormatTime(at) || !_settings.Sync.DailySyncEnabled;
+        _settings.Sync.DailySyncEnabled = DailySyncEnabled;
+        _settings.Sync.DailySyncTime = Schedules.FormatTime(at);
+        // A new time starts tomorrow if today's has already passed, instead of syncing the moment it is saved.
+        if (DailySyncEnabled && timeChanged) _settings.Sync.LastDailySyncFor = Schedules.LatestDaily(DateTime.Now, at);
+        DailySyncTime = _settings.Sync.DailySyncTime;
+        OnPropertyChanged(nameof(NextDailySyncText));
         IntervalMinutes = _settings.Sync.IntervalMinutes;
         InitialHistoryDays = _settings.Sync.InitialHistoryDays;
         SettingsStore.Save(_settings);
-        Status = "Sync settings saved. The background service picks them up on its next start.";
+        Status = "Sync settings saved. The automatic daily sync applies now; the background service picks up the rest on its next start.";
     }
 }

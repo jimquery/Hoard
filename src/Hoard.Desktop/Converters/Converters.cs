@@ -48,6 +48,19 @@ public sealed class AmountToBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
+/// <summary>A change in spending: more (positive) is critical red, less (negative) is success green, none is plain text.</summary>
+public sealed class SpendChangeToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var v = value is decimal d ? (double)d : value is double x ? x : 0;
+        var key = v > 0.5 ? "SystemFillColorCriticalBrush" : v < -0.5 ? "SystemFillColorSuccessBrush" : "TextFillColorPrimaryBrush";
+        return Application.Current.TryFindResource(key) ?? Brushes.Black;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
 /// <summary>Two-way: true when the bound string equals the converter parameter (for radio buttons over a string property).</summary>
 public sealed class StringEqualsConverter : IValueConverter
 {

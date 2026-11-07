@@ -15,6 +15,7 @@
       <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
       <conv:HexToBrushConverter x:Key="HexToBrush"/>
       <conv:AmountToBrushConverter x:Key="AmountToBrush"/>
+      <conv:SpendChangeToBrushConverter x:Key="SpendChangeToBrush"/>
       <conv:StringEqualsConverter x:Key="StringEquals"/>
       <conv:BudgetStatusToBrushConverter x:Key="BudgetStatusBrush"/>
       <conv:ScaleConverter x:Key="Scale"/>

@@ -10,6 +10,12 @@ public partial class SettingsView : UserControl
     {
         InitializeComponent();
         VersionText.Text = $"Hoard {typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "dev"}";
+        Loaded += async (_, _) => { if (DataContext is SettingsViewModel vm) await vm.LoadEmailAsync(); };
+    }
+
+    private void OnSmtpPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm) vm.SmtpPassword = SmtpPasswordBox.Password;
     }
 
     private SettingsViewModel Vm => (SettingsViewModel)DataContext;
