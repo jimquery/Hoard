@@ -81,6 +81,7 @@ public partial class App : Application
         services.AddLogging(b => b.AddDebug().SetMinimumLevel(LogLevel.Information));
         services.AddHoardCore(settings);
         services.AddSingleton(theme);
+        services.AddSingleton<DuplicatesViewModel>();
         services.AddSingleton<ReportsViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<SettingsViewModel>();

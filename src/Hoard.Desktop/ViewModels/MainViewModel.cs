@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Hoard.Core.Categorization;
 using Hoard.Core.Data;
 using Hoard.Core.Domain;
+using Hoard.Core.Duplicates;
 using Hoard.Core.Import;
 using Hoard.Core.Providers.RealEstate;
 using Hoard.Core.Sync;
@@ -164,6 +165,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly PropertyService _propertyService;
     private readonly TransactionImportService _importService;
     private readonly AccountMergeService _merge;
+    private readonly DuplicateService _duplicates;
 
     public MainViewModel(
         IInstitutionRepository institutions,
@@ -177,6 +179,7 @@ public sealed partial class MainViewModel : ObservableObject
         PropertyService propertyService,
         TransactionImportService importService,
         AccountMergeService merge,
+        DuplicateService duplicates,
         ReportsViewModel reports,
         DashboardViewModel dashboard,
         SettingsViewModel settings,
@@ -202,6 +205,8 @@ public sealed partial class MainViewModel : ObservableObject
         _propertyService = propertyService;
         _importService = importService;
         _merge = merge;
+        _duplicates = duplicates;
+        Reports.DuplicatesChanged += () => { MarkDataChanged(); _ = LoadTransactionsAsync(); };
         _filterCategory = FilterCategoryOptions[0]; // backing field: avoid triggering a load from the constructor
     }
 
@@ -374,6 +379,11 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly List<AccountFilterOption> _allAccountFilterOptions = new();
     [ObservableProperty] private TypeFilterOption _filterType = TypeFilterOption.All;
     [ObservableProperty] private AccountFilterOption _filterAccount = AccountFilterOption.All;
+    /// <summary>Transactions marked as duplicates: shown dimmed (default), hidden, or the only ones shown.</summary>
+    public IReadOnlyList<string> DuplicateFilterOptions { get; } = [ShowDuplicates, HideDuplicates, OnlyDuplicates];
+    public const string ShowDuplicates = "Show duplicates", HideDuplicates = "Hide duplicates", OnlyDuplicates = "Duplicates only";
+    [ObservableProperty] private string _duplicateFilter = ShowDuplicates;
+    partial void OnDuplicateFilterChanged(string value) { PageIndex = 0; _ = LoadTransactionsAsync(); }
     private bool _rebuildingAccountFilter;
     [ObservableProperty] private int _pageIndex;
     [ObservableProperty] private int _totalCount;
@@ -513,6 +523,8 @@ public sealed partial class MainViewModel : ObservableObject
         CategoryId = FilterCategory is { Id: > 0 } c ? c.Id : null,
         UncategorizedOnly = FilterCategory?.Id == CategoryOption.UncategorizedFilterId,
         Text = string.IsNullOrWhiteSpace(FilterText) ? null : FilterText,
+        IncludeDuplicates = DuplicateFilter != HideDuplicates,
+        DuplicatesOnly = DuplicateFilter == OnlyDuplicates,
         Limit = PageSize,
         Offset = PageIndex * PageSize,
     };
@@ -525,7 +537,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (PageIndex > 0 && PageIndex * PageSize >= TotalCount) { PageIndex = 0; filter.Offset = 0; }
         var rows = await _transactions.ListAsync(filter);
         Transactions.Clear();
-        foreach (var r in rows) Transactions.Add(new TransactionItem(r, OnTransactionCategoryChangedAsync, OnTransactionNotesChangedAsync));
+        foreach (var r in rows) Transactions.Add(new TransactionItem(r, OnTransactionCategoryChangedAsync, OnTransactionNotesChangedAsync, OnTransactionDuplicateChangedAsync));
     }
 
     [RelayCommand]
@@ -561,6 +573,19 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private Task OnTransactionNotesChangedAsync(TransactionItem item, string? notes) => _transactions.SetNotesAsync(item.Id, notes);
+
+    private async Task OnTransactionDuplicateChangedAsync(TransactionItem item, bool isDuplicate)
+    {
+        try
+        {
+            await _duplicates.SetDuplicateAsync([item.Id], isDuplicate);
+            StatusMessage = isDuplicate
+                ? $"Marked \"{item.Description}\" ({item.Amount:C2}, {item.PostedDate:d}) as a duplicate; reports leave it out."
+                : $"\"{item.Description}\" is no longer a duplicate and counts in reports again.";
+            MarkDataChanged();
+        }
+        catch (Exception ex) { StatusMessage = ex.Message; }
+    }
 
     [RelayCommand]
     private async Task RunRulesAsync()

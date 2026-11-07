@@ -19,7 +19,7 @@
       </StackPanel>
       <StackPanel>
         <TextBlock Text="Transactions" Style="{StaticResource PageTitle}"/>
-        <TextBlock Text="Change a category with the drop-down (type part of a name to filter it); ✎ means you set it, ⚙ a rule, ⇲ an import. Hoard offers to make a rule from each edit." Style="{StaticResource Note}"/>
+        <TextBlock Text="Change a category with the drop-down (type part of a name to filter it); ✎ means you set it, ⚙ a rule, ⇲ an import. Hoard offers to make a rule from each edit. Tick Duplicate to leave a second copy out of every report (Reports › Possible duplicates finds them)." Style="{StaticResource Note}"/>
       </StackPanel>
     </DockPanel>
 
@@ -36,6 +36,8 @@
         <DatePicker SelectedDate="{Binding FilterTo}" Width="140" Margin="0,0,12,0"/>
         <c:FilterPicker ItemsSource="{Binding FilterCategoryOptions}" SelectedItem="{Binding FilterCategory}" DisplayMemberPath="Path" Width="230" Margin="0,0,12,0"
                         ToolTip="Type part of a category name to filter the list"/>
+        <ComboBox ItemsSource="{Binding DuplicateFilterOptions}" SelectedItem="{Binding DuplicateFilter}" Width="160" Margin="0,0,12,0"
+                  ToolTip="Transactions you marked as duplicates are kept but left out of every report"/>
         <ui:Button Content="Apply" Appearance="Primary" Command="{Binding ApplyFilterCommand}" Margin="0,0,6,0"/>
         <ui:Button Content="Clear" Command="{Binding ClearFilterCommand}" Margin="0,0,16,0"/>
         <ui:Button Icon="{ui:SymbolIcon ChevronLeft24}" Command="{Binding PrevPageCommand}" IsEnabled="{Binding CanPrev}" Padding="6,4"/>
@@ -44,7 +46,7 @@
       </WrapPanel>
     </ui:Card>
 
-    <ui:Card Grid.Row="2" Padding="8">
+    <ui:Card Grid.Row="2" Padding="8" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
       <DataGrid ItemsSource="{Binding Transactions}" SelectedItem="{Binding SelectedTransaction}" AutoGenerateColumns="False"
                 CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                 SelectionMode="Single" BorderThickness="0">
@@ -52,6 +54,7 @@
           <Style TargetType="DataGridRow" BasedOn="{StaticResource DefaultDataGridRowStyle}">
             <Style.Triggers>
               <DataTrigger Binding="{Binding IsPending}" Value="True"><Setter Property="FontStyle" Value="Italic"/></DataTrigger>
+              <DataTrigger Binding="{Binding IsDuplicate}" Value="True"><Setter Property="Opacity" Value="0.5"/></DataTrigger>
             </Style.Triggers>
           </Style>
         </DataGrid.RowStyle>
@@ -82,7 +85,15 @@
             </DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
           <DataGridTextColumn Header="Notes" Binding="{Binding Notes, UpdateSourceTrigger=LostFocus}" Width="160"/>
-          <DataGridCheckBoxColumn Header="Pending" Binding="{Binding IsPending, Mode=OneWay}" IsReadOnly="True" Width="60"/>
+          <DataGridCheckBoxColumn Header="Pending" Binding="{Binding IsPending, Mode=OneWay}" IsReadOnly="True" Width="70"/>
+          <DataGridTemplateColumn Header="Duplicate" Width="86">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <CheckBox IsChecked="{Binding IsDuplicate, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" MinWidth="0"
+                          ToolTip="A second copy of another transaction: kept, but left out of reports, budgets, the dashboard and the advisor"/>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
     </ui:Card>

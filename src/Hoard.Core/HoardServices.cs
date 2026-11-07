@@ -50,6 +50,8 @@ public static class HoardServices
         services.AddSingleton<SecretSettings>();
         services.AddSingleton<IBudgetRepository, BudgetRepository>();
         services.AddSingleton<BudgetService>();
+        services.AddSingleton<Duplicates.IDuplicateRepository, Duplicates.DuplicateRepository>();
+        services.AddSingleton<Duplicates.DuplicateService>();
         services.AddSingleton(sp => new FinancialToolbox(
             sp.GetRequiredService<ReportingService>(), sp.GetRequiredService<IReportRepository>(), sp.GetRequiredService<BudgetService>(),
             sp.GetRequiredService<ITransactionRepository>(), sp.GetRequiredService<ICategoryRepository>(), sp.GetRequiredService<IHouseholdRepository>()));

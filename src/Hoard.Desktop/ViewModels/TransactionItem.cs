@@ -9,12 +9,16 @@ public sealed partial class TransactionItem : ObservableObject
 {
     private readonly Func<TransactionItem, long?, Task> _onCategoryChanged;
     private readonly Func<TransactionItem, string?, Task> _onNotesChanged;
+    private readonly Func<TransactionItem, bool, Task>? _onDuplicateChanged;
     private bool _suppress;
 
-    public TransactionItem(TransactionRow row, Func<TransactionItem, long?, Task> onCategoryChanged, Func<TransactionItem, string?, Task> onNotesChanged)
+    public TransactionItem(TransactionRow row, Func<TransactionItem, long?, Task> onCategoryChanged, Func<TransactionItem, string?, Task> onNotesChanged,
+        Func<TransactionItem, bool, Task>? onDuplicateChanged = null)
     {
         _onCategoryChanged = onCategoryChanged;
         _onNotesChanged = onNotesChanged;
+        _onDuplicateChanged = onDuplicateChanged;
+        _isDuplicate = row.IsDuplicate;
         Id = row.Id;
         AccountId = row.AccountId;
         AccountName = row.AccountName;
@@ -47,6 +51,13 @@ public sealed partial class TransactionItem : ObservableObject
     [ObservableProperty] private CategorySource _categorySource;
     [ObservableProperty] private string _categoryPath;
     [ObservableProperty] private string? _notes;
+    /// <summary>Marked as a duplicate: kept, but left out of reports, budgets, the dashboard and the advisor.</summary>
+    [ObservableProperty] private bool _isDuplicate;
+
+    partial void OnIsDuplicateChanged(bool value)
+    {
+        if (!_suppress && _onDuplicateChanged is not null) _ = _onDuplicateChanged(this, value);
+    }
 
     public string SourceGlyph => CategorySource switch
     {

@@ -531,6 +531,90 @@
           </Grid>
         </DockPanel>
       </TabItem>
+
+      <!-- ============================== Possible duplicates ============================== -->
+      <TabItem Header="Possible duplicates">
+        <DockPanel Margin="0,8,0,0" DataContext="{Binding Duplicates}">
+          <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+            <TextBlock Text="Look back" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+            <ComboBox ItemsSource="{Binding RangeOptions}" SelectedItem="{Binding SelectedRange}" Width="130" Margin="0,0,16,0"/>
+            <TextBlock Text="Within" VerticalAlignment="Center" Margin="0,0,6,0" Style="{StaticResource Muted}"/>
+            <ComboBox ItemsSource="{Binding WindowOptions}" SelectedItem="{Binding WindowDays}" Width="70" Margin="0,0,6,0"
+                      ToolTip="How many days apart two copies may be posted"/>
+            <TextBlock Text="day(s)" VerticalAlignment="Center" Margin="0,0,16,0" Style="{StaticResource Muted}"/>
+            <CheckBox Content="Show resolved groups" IsChecked="{Binding ShowResolved}" VerticalAlignment="Center" Margin="0,0,16,0"
+                      ToolTip="Also list groups where all but one transaction is already marked, so a mark can be undone"/>
+            <ui:Button Content="Rescan" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadCommand}" Margin="0,0,16,0"/>
+            <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+          </WrapPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" Style="{StaticResource Note}"/>
+          <TextBlock DockPanel.Dock="Top" Text="Tick each extra copy, then save them all at once. Ticked transactions stay in the Transactions list (dimmed) but are left out of every report, budget, the dashboard and the AI advisor. &quot;keep&quot; marks the copy Hoard suggests keeping: the one synced from your bank, else the first one stored."
+                     Style="{StaticResource Note}" Margin="0,0,0,6"/>
+          <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <ui:Button Content="Select suggested" Icon="{ui:SymbolIcon CheckmarkStarburst24}" Command="{Binding SelectSuggestedCommand}" Margin="0,0,8,0"
+                         ToolTip="Tick every copy except the suggested keeper in each group"/>
+              <ui:Button Content="Not duplicates" Icon="{ui:SymbolIcon DismissCircle24}" Command="{Binding NotDuplicatesCommand}" Margin="0,0,8,0"
+                         ToolTip="The selected row's group is genuinely separate purchases; stop offering it"/>
+              <ui:Button Content="Reset" Command="{Binding ResetChoicesCommand}" IsEnabled="{Binding HasPendingChanges}" Margin="0,0,8,0"/>
+              <ui:Button Content="{Binding SaveText}" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" IsEnabled="{Binding HasPendingChanges}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </DockPanel>
+          <ui:Card Style="{StaticResource ChartCard}">
+            <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" AutoGenerateColumns="False" CanUserAddRows="False"
+                      CanUserDeleteRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="0" SelectionMode="Single">
+              <!-- No DataGrid grouping: a GroupStyle collapses every column to its minimum width under this theme (and the row
+                   template ignores a row Background). Each row shows its group number as a pill whose color alternates by group. -->
+              <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource DefaultDataGridRowStyle}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsMarked}" Value="True"><Setter Property="Opacity" Value="0.6"/></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </DataGrid.RowStyle>
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Group" Width="62" IsReadOnly="True">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <Border CornerRadius="4" Padding="6,1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Border.Style>
+                          <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsBanded}" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding GroupText}" FontWeight="SemiBold"/>
+                      </Border>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="Duplicate" Width="80">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <CheckBox IsChecked="{Binding IsMarked, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" MinWidth="0"/>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Keep" Binding="{Binding KeepHint}" Width="50" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Posted" Binding="{Binding PostedDate, StringFormat=yyyy-MM-dd}" Width="95" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Account" Binding="{Binding Account}" Width="150" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Payee" Binding="{Binding Payee}" Width="140" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=N2}" Width="95" IsReadOnly="True" ElementStyle="{StaticResource RightCell}"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="150" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="75" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Added" Binding="{Binding Added, StringFormat=yyyy-MM-dd HH:mm}" Width="112" IsReadOnly="True"/>
+              </DataGrid.Columns>
+            </DataGrid>
+          </ui:Card>
+        </DockPanel>
+      </TabItem>
     </TabControl>
   </Grid>
 </UserControl>

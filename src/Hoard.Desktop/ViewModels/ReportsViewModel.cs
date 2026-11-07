@@ -136,7 +136,7 @@ public sealed partial class CollegeRow : ObservableObject
 /// </summary>
 public sealed partial class ReportsViewModel : ObservableObject
 {
-    public const int NetWorthTab = 0, IncomeTab = 1, SpendingTab = 2, BudgetTab = 3;
+    public const int NetWorthTab = 0, IncomeTab = 1, SpendingTab = 2, BudgetTab = 3, DuplicatesTab = 7;
 
     private readonly ReportingService _reports;
     private readonly IAccountRepository _accounts;
@@ -149,8 +149,10 @@ public sealed partial class ReportsViewModel : ObservableObject
     private const string OtherGroupsName = "All other groups";
     private const string OtherTypesName = "All other types";
 
-    public ReportsViewModel(ReportingService reports, IAccountRepository accounts, BudgetService budget, ThemeService theme)
+    public ReportsViewModel(ReportingService reports, IAccountRepository accounts, BudgetService budget, ThemeService theme, DuplicatesViewModel duplicates)
     {
+        Duplicates = duplicates;
+        Duplicates.Saved += () => { DuplicatesChanged?.Invoke(); Run(LoadAllAsync); };
         _reports = reports;
         _accounts = accounts;
         _budget = budget;
@@ -193,6 +195,17 @@ public sealed partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private string _status = "";
     /// <summary>Which report tab is showing (see the *Tab constants).</summary>
     [ObservableProperty] private int _selectedReportIndex;
+
+    /// <summary>Reports › Possible duplicates.</summary>
+    public DuplicatesViewModel Duplicates { get; }
+    /// <summary>Raised after duplicates were marked or unmarked, so the other pages refresh.</summary>
+    public event Action? DuplicatesChanged;
+
+    // The duplicates scan reads every transaction in range, so it runs when its tab is opened, not with the other reports.
+    partial void OnSelectedReportIndexChanged(int value)
+    {
+        if (value == DuplicatesTab && !Duplicates.HasPendingChanges && !Duplicates.IsBusy) Run(Duplicates.LoadAsync, "Possible duplicates");
+    }
 
     // ---------- Net worth ----------
     public IReadOnlyList<RangeOption> RangeOptions { get; } =

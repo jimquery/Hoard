@@ -450,6 +450,8 @@ public sealed class TransactionRow
     public string? Memo { get; set; }
     public string? Notes { get; set; }
     public bool IsPending { get; set; }
+    /// <summary>Marked by the user as a duplicate: kept, but left out of reports and analytics.</summary>
+    public bool IsDuplicate { get; set; }
     public long? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public string? ParentCategoryName { get; set; }
@@ -473,6 +475,13 @@ public sealed class TransactionFilter
     public long? CategoryId { get; set; }
     public bool UncategorizedOnly { get; set; }
     public string? Text { get; set; }
+    /// <summary>
+    /// Also return transactions marked as duplicates. Off by default so analytics (the advisor's search) never sees
+    /// them; the Transactions page turns it on so a mark can be seen and undone.
+    /// </summary>
+    public bool IncludeDuplicates { get; set; }
+    /// <summary>Only transactions marked as duplicates (implies <see cref="IncludeDuplicates"/>).</summary>
+    public bool DuplicatesOnly { get; set; }
     public int Limit { get; set; } = 500;
     public int Offset { get; set; }
 }
@@ -584,6 +593,8 @@ public sealed class TransactionRepository : ITransactionRepository
                AND (@CategoryId IS NULL OR t.category_id = @CategoryId OR c.parent_id = @CategoryId)
                AND (@UncategorizedOnly = 0 OR t.category_id IS NULL)
                AND (@TextLike IS NULL OR t.description LIKE @TextLike OR t.payee LIKE @TextLike OR t.memo LIKE @TextLike OR t.notes LIKE @TextLike)
+               AND (@IncludeDuplicates = 1 OR t.is_duplicate = 0)
+               AND (@DuplicatesOnly = 0 OR t.is_duplicate = 1)
         """;
 
     private static object FilterParams(TransactionFilter f) => new
@@ -591,6 +602,8 @@ public sealed class TransactionRepository : ITransactionRepository
         f.AccountId, f.InstitutionId, f.AccountTypeId, f.FromUtc, f.ToUtc, f.CategoryId,
         UntypedAccountsOnly = f.UntypedAccountsOnly ? 1 : 0,
         UncategorizedOnly = f.UncategorizedOnly ? 1 : 0,
+        IncludeDuplicates = f.IncludeDuplicates || f.DuplicatesOnly ? 1 : 0,
+        DuplicatesOnly = f.DuplicatesOnly ? 1 : 0,
         TextLike = string.IsNullOrWhiteSpace(f.Text) ? null : "%" + f.Text.Trim() + "%",
         Limit = Math.Clamp(f.Limit, 1, 10000),
         Offset = Math.Max(0, f.Offset),
@@ -601,7 +614,7 @@ public sealed class TransactionRepository : ITransactionRepository
         using var c = await _f.OpenAsync(ct);
         return (await c.QueryAsync<TransactionRow>($"""
             SELECT t.id, t.account_id, COALESCE(NULLIF(a.display_name, ''), a.name) AS account_name, i.name AS institution_name,
-                   t.posted_at_utc, t.amount, t.description, t.payee, t.memo, t.notes, t.is_pending,
+                   t.posted_at_utc, t.amount, t.description, t.payee, t.memo, t.notes, t.is_pending, t.is_duplicate,
                    t.category_id, c.name AS category_name, p.name AS parent_category_name, t.category_source
               FROM transactions t
               JOIN accounts a ON a.id = t.account_id

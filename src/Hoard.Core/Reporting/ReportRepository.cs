@@ -74,7 +74,8 @@ public interface IReportRepository
 }
 
 /// <summary>
-/// Read-only aggregation queries for reports. Conventions: pending transactions and hidden accounts are excluded;
+/// Read-only aggregation queries for reports. Conventions: pending transactions, transactions marked as duplicates and
+/// hidden accounts are excluded;
 /// Transfer-kind categories are never income or spending; an uncategorized transaction counts by sign.
 /// </summary>
 public sealed class ReportRepository : IReportRepository
@@ -88,7 +89,7 @@ public sealed class ReportRepository : IReportRepository
         return (await c.QueryAsync<ReportAccountRow>("""
             SELECT a.id AS account_id, COALESCE(NULLIF(a.display_name, ''), a.name) AS name,
                    cat.name AS type_name, cat.kind AS type_kind, cat.color AS type_color, COALESCE(cat.sort_order, 9999) AS type_sort_order,
-                   (SELECT MIN(t.posted_at_utc) FROM transactions t WHERE t.account_id = a.id AND t.is_pending = 0) AS first_transaction_utc
+                   (SELECT MIN(t.posted_at_utc) FROM transactions t WHERE t.account_id = a.id AND t.is_pending = 0 AND t.is_duplicate = 0) AS first_transaction_utc
               FROM accounts a
               LEFT JOIN account_categories cat ON cat.id = a.category_id
              WHERE a.is_hidden = 0 AND a.exclude_from_net_worth = 0
@@ -126,7 +127,7 @@ public sealed class ReportRepository : IReportRepository
         var rows = await c.QueryAsync<(long AccountId, decimal Total)>("""
             SELECT t.account_id, SUM(t.amount) AS total
               FROM transactions t
-             WHERE t.is_pending = 0 AND t.amount > 0 AND t.posted_at_utc >= @fromUtc
+             WHERE t.is_pending = 0 AND t.is_duplicate = 0 AND t.amount > 0 AND t.posted_at_utc >= @fromUtc
              GROUP BY t.account_id
             """, new { fromUtc });
         return rows.ToDictionary(r => r.AccountId, r => r.Total);
@@ -151,7 +152,7 @@ public sealed class ReportRepository : IReportRepository
             SELECT t.account_id, DATE(t.posted_at_utc) AS day, SUM(t.amount) AS total
               FROM transactions t
               JOIN accounts a ON a.id = t.account_id
-             WHERE t.is_pending = 0 AND a.is_hidden = 0 AND a.exclude_from_net_worth = 0
+             WHERE t.is_pending = 0 AND t.is_duplicate = 0 AND a.is_hidden = 0 AND a.exclude_from_net_worth = 0
              GROUP BY t.account_id, DATE(t.posted_at_utc)
             """)).ToList();
     }
@@ -166,7 +167,7 @@ public sealed class ReportRepository : IReportRepository
           JOIN account_categories acat ON acat.id = a.category_id AND acat.include_in_spending = 1
           LEFT JOIN transaction_categories c ON c.id = t.category_id
           LEFT JOIN transaction_categories p ON p.id = c.parent_id
-         WHERE t.is_pending = 0 AND a.is_hidden = 0
+         WHERE t.is_pending = 0 AND t.is_duplicate = 0 AND a.is_hidden = 0
            AND t.posted_at_utc >= @from AND t.posted_at_utc < @to
         """;
 
@@ -234,7 +235,7 @@ public sealed class ReportRepository : IReportRepository
               JOIN institutions i ON i.id = a.institution_id
               JOIN account_categories acat ON acat.id = a.category_id AND acat.include_in_spending = 1
               LEFT JOIN transaction_categories c ON c.id = t.category_id
-             WHERE t.is_pending = 0 AND a.is_hidden = 0
+             WHERE t.is_pending = 0 AND t.is_duplicate = 0 AND a.is_hidden = 0
                AND t.posted_at_utc >= @fromUtc AND t.amount < 0
                AND (c.kind IS NULL OR c.kind = @expense)
              ORDER BY t.posted_at_utc
