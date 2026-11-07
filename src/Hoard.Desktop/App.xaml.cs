@@ -62,6 +62,8 @@ public partial class App : Application
         var main = new MainWindow { DataContext = Services.GetRequiredService<MainViewModel>() };
         main.Closed += (_, _) => Shutdown();
         main.Show();
+        if (Services.GetRequiredService<AppUpdater>().ReportPreviousInstall() is { } updated)
+            Services.GetRequiredService<MainViewModel>().StatusMessage = updated;
         Services.GetRequiredService<DesktopScheduler>().Start();
     }
 
@@ -84,6 +86,7 @@ public partial class App : Application
         services.AddSingleton(theme);
         services.AddSingleton<DuplicatesViewModel>();
         services.AddSingleton<WeeklyReportViewModel>();
+        services.AddSingleton<AppUpdater>();
         services.AddSingleton<DesktopScheduler>();
         services.AddSingleton<ReportsViewModel>();
         services.AddSingleton<DashboardViewModel>();

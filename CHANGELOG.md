@@ -1,5 +1,17 @@
 # Hoard changelog
 
+## 3.2.0 — 2026-11-07
+
+Hoard can now update itself. Install `Hoard-3.2.0-x64.msi` once by hand (3.1.0 and earlier cannot update
+themselves); from then on new releases install automatically, or on request from Settings › Updates.
+
+### Added
+- **Automatic updates.** Settings › Updates checks GitHub for a new release soon after Hoard starts and once a day
+  (on by default). With "Install them automatically" on (the default) Hoard downloads the release's MSI, checks it
+  against the size and SHA-256 GitHub publishes, closes, runs the installer (Windows asks for consent once), and reopens
+  on the new version. "Check now", "Install update" and "Release notes" are there for doing it by hand. The outcome is
+  reported in the status bar on the next start; an install that fails or is cancelled is not retried automatically.
+
 ## 3.1.0 — 2026-11-07
 
 Duplicate transactions, a weekly spending email with AI analysis, automatic daily sync, income on the Budget page,

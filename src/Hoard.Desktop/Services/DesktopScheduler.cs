@@ -7,7 +7,8 @@ using Hoard.Desktop.ViewModels;
 namespace Hoard.Desktop.Services;
 
 /// <summary>
-/// Jobs that run while the desktop app is open: the daily sync of every institution and the weekly spending email.
+/// Jobs that run while the desktop app is open: the daily sync of every institution, the weekly spending email and
+/// the daily check for a new Hoard release.
 /// It checks once a minute (first a minute after start, so start-up and the first page load finish first). A job
 /// missed while the app was closed runs once at the next check; each scheduled occurrence runs at most once.
 /// </summary>
@@ -16,14 +17,16 @@ public sealed class DesktopScheduler
     private readonly HoardSettings _settings;
     private readonly MainViewModel _main;
     private readonly WeeklyReportService _weekly;
+    private readonly AppUpdater _updater;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMinutes(1) };
     private bool _running;
 
-    public DesktopScheduler(HoardSettings settings, MainViewModel main, WeeklyReportService weekly)
+    public DesktopScheduler(HoardSettings settings, MainViewModel main, WeeklyReportService weekly, AppUpdater updater)
     {
         _settings = settings;
         _main = main;
         _weekly = weekly;
+        _updater = updater;
         _timer.Tick += async (_, _) => await TickAsync();
     }
 
@@ -37,6 +40,7 @@ public sealed class DesktopScheduler
         {
             await DailySyncAsync();
             await WeeklyReportAsync();
+            await UpdateAsync();
         }
         finally { _running = false; }
     }
@@ -64,6 +68,15 @@ public sealed class DesktopScheduler
             ErrorLog.Write(ex, "Daily sync");
         }
         _main.Settings.RefreshSchedules();
+    }
+
+    private async Task UpdateAsync()
+    {
+        try
+        {
+            if (await _updater.RunScheduledAsync(_main.IsBusy) is { } message) _main.StatusMessage = message;
+        }
+        catch (Exception ex) { ErrorLog.Write(ex, "Update"); }
     }
 
     private async Task WeeklyReportAsync()

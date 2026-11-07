@@ -59,6 +59,12 @@ public static class HoardServices
         services.AddSingleton<Email.SmtpEmailSender>();
         services.AddSingleton<Email.IEmailSender>(sp => sp.GetRequiredService<Email.SmtpEmailSender>());
         services.AddSingleton<Reporting.Weekly.WeeklyReportService>();
+        services.AddSingleton(sp =>
+        {
+            var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"Hoard/{Updates.UpdateService.CurrentVersion.ToString(3)} (+personal finance aggregator)");
+            return new Updates.UpdateService(http, sp.GetRequiredService<HoardSettings>());
+        });
 
         services.AddSingleton(sp =>
         {

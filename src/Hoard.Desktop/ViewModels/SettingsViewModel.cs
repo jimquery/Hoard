@@ -19,8 +19,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ISecretProtector _protector;
     private readonly SmtpEmailSender _email;
 
-    public SettingsViewModel(HoardSettings settings, ThemeService theme, ISecretProtector protector, SmtpEmailSender email)
+    /// <summary>Update checks and installs (Settings › Updates).</summary>
+    public AppUpdater Updater { get; }
+
+    public SettingsViewModel(HoardSettings settings, ThemeService theme, ISecretProtector protector, SmtpEmailSender email, AppUpdater updater)
     {
+        Updater = updater;
         _settings = settings;
         _theme = theme;
         _protector = protector;

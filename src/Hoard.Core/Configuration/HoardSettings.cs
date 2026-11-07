@@ -18,6 +18,24 @@ public sealed class HoardSettings
     public AdvisorSettings Advisor { get; set; } = new();
     public EmailSettings Email { get; set; } = new();
     public WeeklyReportSettings WeeklyReport { get; set; } = new();
+    public UpdateSettings Updates { get; set; } = new();
+}
+
+/// <summary>Checking GitHub for new Hoard releases, and installing them, from the desktop app.</summary>
+public sealed class UpdateSettings
+{
+    /// <summary>Check for a new release when the desktop app starts and once a day while it runs.</summary>
+    public bool AutoCheck { get; set; } = true;
+    /// <summary>When a check finds a new release, download and install it (Hoard closes, then reopens on the new version).</summary>
+    public bool AutoInstall { get; set; } = true;
+    public DateTime? LastCheckUtc { get; set; }
+    public string? LastCheckError { get; set; }
+    /// <summary>The newest published version the last check saw.</summary>
+    public string? LatestVersion { get; set; }
+    /// <summary>Version an install was started for; cleared on the next start once it is the running version.</summary>
+    public string? InstallingVersion { get; set; }
+    /// <summary>A version whose automatic install failed or was cancelled; it is not retried automatically.</summary>
+    public string? SkippedVersion { get; set; }
 }
 
 /// <summary>Outgoing mail (SMTP) for the weekly report. The password is sealed in the database (see <see cref="PasswordSetting"/>).</summary>
