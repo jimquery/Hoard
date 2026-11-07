@@ -70,15 +70,7 @@ public partial class App : Application
     /// </summary>
     private static string Describe(Exception ex)
     {
-        var log = Path.Combine(SettingsStore.DefaultDirectory, "desktop-error.log");
-        try
-        {
-            File.AppendAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}");
-        }
-        catch (Exception)
-        {
-            log = null;
-        }
+        var log = ErrorLog.Write(ex);
         var root = ex.GetBaseException();
         return log is null ? root.Message : $"{root.Message}\n\nDetails: {log}";
     }

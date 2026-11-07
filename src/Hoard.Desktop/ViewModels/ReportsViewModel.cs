@@ -6,6 +6,7 @@ using Hoard.Core.Budgeting;
 using Hoard.Core.Data;
 using Hoard.Core.Domain;
 using Hoard.Core.Reporting;
+using Hoard.Desktop.Controls;
 using Hoard.Desktop.Services;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
@@ -143,7 +144,10 @@ public sealed partial class ReportsViewModel : ObservableObject
     private readonly ChartTheme _t;
     private SKColor[] Palette => _t.Palette;
     private SKColor Ink => _t.Ink;
-    private const string OtherName = "Other";
+    // Labels for the series that fold the smallest groups/types together. Not plain "Other": users have real category
+    // groups and account types called that, and a clash broke the chart (duplicate key) and drill-down.
+    private const string OtherGroupsName = "All other groups";
+    private const string OtherTypesName = "All other types";
 
     public ReportsViewModel(ReportingService reports, IAccountRepository accounts, BudgetService budget, ThemeService theme)
     {
@@ -177,7 +181,7 @@ public sealed partial class ReportsViewModel : ObservableObject
         _budgetYAxes = [_t.CategoryAxis([])];
         _budgetHistoryXAxes = [_t.CategoryAxis([])];
         _budgetHistoryYAxes = [_t.CurrencyAxis()];
-        theme.Changed += () => { if (_loadedOnce) _ = LoadAllAsync(); };
+        theme.Changed += () => { if (_loadedOnce) Run(LoadAllAsync, "Reports"); };
     }
 
     private bool _loadedOnce;
@@ -229,7 +233,7 @@ public sealed partial class ReportsViewModel : ObservableObject
     /// <summary>Hide subscriptions whose last charge is too old for the next one to still be expected.</summary>
     [ObservableProperty] private bool _activeSubscriptionsOnly = true;
     public ObservableCollection<SubscriptionChargeRow> SubscriptionRows { get; } = new();
-    partial void OnActiveSubscriptionsOnlyChanged(bool value) => _ = LoadSubscriptionsAsync();
+    partial void OnActiveSubscriptionsOnlyChanged(bool value) => Run(LoadSubscriptionsAsync);
     public ObservableCollection<TypeBalanceRow> TypeRows { get; } = new();
 
     // ---------- College savings ----------
@@ -249,14 +253,14 @@ public sealed partial class ReportsViewModel : ObservableObject
 
     // Ignore the null the ComboBox pushes while the options list is being rebuilt, and anything raised during a load:
     // reacting to those re-entered LoadCollegeAsync endlessly (flicker, hang, runaway memory).
-    partial void OnSelectedCollegeTypeChanged(AccountCategory? value) { if (_loadedOnce && !_collegeLoading && value is not null) _ = LoadCollegeAsync(); }
+    partial void OnSelectedCollegeTypeChanged(AccountCategory? value) { if (_loadedOnce && !_collegeLoading && value is not null) Run(LoadCollegeAsync); }
 
     [RelayCommand]
     private Task RecalculateCollegeAsync() => LoadCollegeAsync();
 
-    partial void OnSelectedRangeChanged(RangeOption value) => _ = LoadNetWorthAsync();
-    partial void OnBreakDownByTypeChanged(bool value) => _ = LoadNetWorthAsync();
-    partial void OnIncludeEstimatedChanged(bool value) => _ = LoadNetWorthAsync();
+    partial void OnSelectedRangeChanged(RangeOption value) => Run(LoadNetWorthAsync);
+    partial void OnBreakDownByTypeChanged(bool value) => Run(LoadNetWorthAsync);
+    partial void OnIncludeEstimatedChanged(bool value) => Run(LoadNetWorthAsync);
 
     // ---------- Income vs. expenses ----------
     public IReadOnlyList<RangeOption> IncomeRangeOptions { get; } = [new("6 months", 6), new("12 months", 12), new("24 months", 24)];
@@ -272,7 +276,16 @@ public sealed partial class ReportsViewModel : ObservableObject
     public ObservableCollection<IncomeExpenseRow> IncomeRows { get; } = new();
     [ObservableProperty] private IncomeExpenseRow? _selectedIncomeRow;
 
-    partial void OnSelectedIncomeRangeChanged(RangeOption value) => _ = LoadIncomeAsync();
+    partial void OnSelectedIncomeRangeChanged(RangeOption value) => Run(LoadIncomeAsync);
+
+    private IReadOnlyList<DateOnly> _incomeMonths = [];
+
+    /// <summary>A click anywhere in a month's column of the income chart opens that month's spending.</summary>
+    [RelayCommand]
+    private void IncomeChartClicked(ChartHit hit)
+    {
+        if (hit.Point is { } p && p.Index >= 0 && p.Index < _incomeMonths.Count) DrillIntoMonth(_incomeMonths[p.Index]);
+    }
 
     /// <summary>Opens the Spending tab on a month (from a click on the income chart or a double-click in its grid).</summary>
     public void DrillIntoMonth(DateOnly month)
@@ -310,7 +323,7 @@ public sealed partial class ReportsViewModel : ObservableObject
     [ObservableProperty] private SpendingRow? _selectedSpendingRow;
     private SpendingComparison? _comparison;
 
-    partial void OnSelectedMonthChanged(MonthOption value) => _ = LoadSpendingAsync();
+    partial void OnSelectedMonthChanged(MonthOption value) => Run(LoadSpendingAsync);
     partial void OnSelectedGroupChanged(string? value)
     {
         OnPropertyChanged(nameof(HasSelectedGroup));
@@ -320,6 +333,40 @@ public sealed partial class ReportsViewModel : ObservableObject
 
     [RelayCommand]
     private void ClearSpendingGroup() => SelectedGroup = null;
+
+    private IReadOnlyList<DateOnly> _trendMonths = [];
+
+    /// <summary>
+    /// A click on the 12-month trend opens that month; when it lands on a group's segment it also drills into that
+    /// group, and a click above the stack shows every group.
+    /// </summary>
+    [RelayCommand]
+    private void TrendChartClicked(ChartHit hit)
+    {
+        if (hit.Point is not { } p || p.Index < 0 || p.Index >= _trendMonths.Count) return;
+        var option = MonthOptions.FirstOrDefault(o => o.Month == _trendMonths[p.Index]);
+        if (option is not null && !ReferenceEquals(option, SelectedMonth)) SelectedMonth = option;
+        SelectedGroup = hit.ExactSeriesName is { } g && g != OtherGroupsName ? g : null;
+    }
+
+    /// <summary>A click on a donut slice drills into that group; clicking the drilled-into slice again goes back.</summary>
+    [RelayCommand]
+    private void PieChartClicked(ChartHit hit)
+    {
+        if (hit.ExactSeriesName is not { } g) return;
+        SelectedGroup = SelectedGroup == g ? null : g;
+    }
+
+    /// <summary>A click on a category's bars selects its row in the grid (double-click the row for its transactions).</summary>
+    [RelayCommand]
+    private void GroupDetailChartClicked(ChartHit hit)
+    {
+        if (hit.Point is not { } p || p.Index < 0 || p.Index >= _groupDetailCategories.Count) return;
+        var name = _groupDetailCategories[p.Index];
+        SelectedSpendingRow = SpendingRows.FirstOrDefault(r => r.Category == name);
+    }
+
+    private IReadOnlyList<string> _groupDetailCategories = [];
 
     /// <summary>Transactions behind the selected row (or the drilled-into group, or the whole month).</summary>
     [RelayCommand]
@@ -355,11 +402,24 @@ public sealed partial class ReportsViewModel : ObservableObject
     /// <summary>The group whose 12-month history is charted (null = all groups with a target).</summary>
     [ObservableProperty] private BudgetReportRow? _budgetHistoryGroup;
 
-    partial void OnSelectedBudgetMonthChanged(MonthOption value) => _ = LoadBudgetAsync();
-    partial void OnBudgetHistoryGroupChanged(BudgetReportRow? value) => _ = LoadBudgetHistoryAsync();
+    partial void OnSelectedBudgetMonthChanged(MonthOption value) => Run(LoadBudgetAsync);
+    partial void OnBudgetHistoryGroupChanged(BudgetReportRow? value) => Run(LoadBudgetHistoryAsync);
 
     [RelayCommand]
     private void ShowAllBudgetHistory() => BudgetHistoryGroup = null;
+
+    private IReadOnlyList<string> _budgetChartGroups = [];
+
+    /// <summary>A click anywhere in a group's row of the budget chart charts that group's history and selects its row.</summary>
+    [RelayCommand]
+    private void BudgetChartClicked(ChartHit hit)
+    {
+        if (hit.Point is not { } p || p.Index < 0 || p.Index >= _budgetChartGroups.Count) return;
+        var row = BudgetRows.FirstOrDefault(r => r.Group == _budgetChartGroups[p.Index]);
+        if (row is null) return;
+        BudgetHistoryGroup = row;
+        SelectedBudgetRow = row;
+    }
 
     [RelayCommand]
     private async Task OpenBudgetTransactionsAsync()
@@ -385,7 +445,7 @@ public sealed partial class ReportsViewModel : ObservableObject
             _loadedOnce = true;
             Status = "";
         }
-        catch (Exception ex) { Status = ex.Message; }
+        catch (Exception ex) { Status = ex.Message; ErrorLog.Write(ex, "Reports"); }
         finally { IsBusy = false; }
     }
 
@@ -652,12 +712,12 @@ public sealed partial class ReportsViewModel : ObservableObject
     {
         if (types.Count <= maxSeries)
             return (types.ToList(), (p, n) => p.ByType.GetValueOrDefault(n));
-        // Keep the largest types by latest balance; fold the rest into "Other". Assignment is fixed for the life of the chart.
+        // Keep the largest types by latest balance; fold the rest into one series. Assignment is fixed for the life of the chart.
         var latest = points[^1].ByType;
-        var keep = types.OrderByDescending(t => latest.GetValueOrDefault(t)).Take(maxSeries - 1).ToList();
+        var keep = types.Where(t => t != OtherTypesName).OrderByDescending(t => latest.GetValueOrDefault(t)).Take(maxSeries - 1).ToList();
         var rest = types.Except(keep).ToHashSet();
-        var names = keep.Append(OtherName).ToList();
-        return (names, (p, n) => n == OtherName ? rest.Sum(t => p.ByType.GetValueOrDefault(t)) : p.ByType.GetValueOrDefault(n));
+        var names = keep.Append(OtherTypesName).ToList();
+        return (names, (p, n) => n == OtherTypesName ? rest.Sum(t => p.ByType.GetValueOrDefault(t)) : p.ByType.GetValueOrDefault(n));
     }
 
     /// <summary>Which account types feed the transaction-based reports, for the notes under them.</summary>
@@ -677,10 +737,9 @@ public sealed partial class ReportsViewModel : ObservableObject
         var monthStarts = rows.Select(r => r.Month).ToList();
 
         var labels = rows.Select(r => r.Month.ToString("MMM yy", CultureInfo.CurrentCulture)).ToArray();
+        _incomeMonths = monthStarts;
         var income = _t.Column("Income", rows.Select(r => (double)r.Income), Palette[0]);
         var expense = _t.Column("Expenses", rows.Select(r => (double)r.Expense), Palette[1]);
-        foreach (var column in new[] { income, expense })
-            column.ChartPointPointerDown += (_, point) => { if (point is not null) OnUi(() => DrillIntoMonth(monthStarts[point.Index])); };
         IncomeSeries =
         [
             income,
@@ -734,18 +793,18 @@ public sealed partial class ReportsViewModel : ObservableObject
         var months = Enumerable.Range(0, 12).Select(i => month.AddMonths(-(11 - i))).ToList();
         var groupTotals = trend.GroupBy(t => t.GroupName).ToDictionary(g => g.Key, g => g.Sum(x => x.Amount));
         var groups = groupTotals.OrderByDescending(kv => kv.Value).Select(kv => kv.Key).ToList();
-        var topGroups = groups.Take(Palette.Length - 1).ToList();
-        var folded = groups.Skip(Palette.Length - 1).ToHashSet();
-        var seriesNames = folded.Count > 0 ? topGroups.Append(OtherName).ToList() : topGroups;
+        var topGroups = groups.Count <= Palette.Length ? groups : groups.Where(g => g != OtherGroupsName).Take(Palette.Length - 1).ToList();
+        var folded = groups.Except(topGroups).ToHashSet();
+        var seriesNames = folded.Count > 0 ? topGroups.Append(OtherGroupsName).ToList() : topGroups;
         _groupColors = seriesNames.Select((g, i) => (g, i)).ToDictionary(x => x.g, x => Palette[x.i % Palette.Length]);
 
-        decimal TrendValue(DateOnly m, string g) => g == OtherName
+        decimal TrendValue(DateOnly m, string g) => folded.Count > 0 && g == OtherGroupsName
             ? trend.Where(t => t.Month == m && folded.Contains(t.GroupName)).Sum(t => t.Amount)
             : trend.Where(t => t.Month == m && t.GroupName == g).Sum(t => t.Amount);
 
         SpendingTrendSeries = seriesNames.Select((g, i) =>
         {
-            var s = new StackedColumnSeries<double>
+            return (ISeries)new StackedColumnSeries<double>
             {
                 Name = g,
                 Values = months.Select(m => (double)TrendValue(m, g)).ToList(),
@@ -755,18 +814,8 @@ public sealed partial class ReportsViewModel : ObservableObject
                 Rx = 2, Ry = 2,
                 YToolTipLabelFormatter = p => p.Coordinate.PrimaryValue.ToString("C0"),
             };
-            s.ChartPointPointerDown += (_, point) =>
-            {
-                if (point is null) return;
-                OnUi(() =>
-                {
-                    var option = MonthOptions.FirstOrDefault(o => o.Month == months[point.Index]);
-                    if (option is not null) SelectedMonth = option;
-                    if (g != OtherName) SelectedGroup = g;
-                });
-            };
-            return (ISeries)s;
         }).ToArray();
+        _trendMonths = months;
         SpendingTrendXAxes = [_t.CategoryAxis(months.Select(m => m.ToString("MMM yy", CultureInfo.CurrentCulture)).ToArray())];
         SpendingTrendYAxes = [_t.CurrencyAxis()];
 
@@ -792,6 +841,7 @@ public sealed partial class ReportsViewModel : ObservableObject
     }
 
     private Dictionary<string, SKColor> _groupColors = new();
+    private readonly Dictionary<string, SKColor> _sliceColors = new();
 
     /// <summary>The lower half of the Spending tab: the donut of all groups, or one group's categories against last year, plus the grid.</summary>
     private void ShowSpendingDetail(SpendingComparison cmp)
@@ -800,9 +850,11 @@ public sealed partial class ReportsViewModel : ObservableObject
             .Where(g => g.Total > 0).OrderByDescending(g => g.Total).ToList();
         var total = currentByGroup.Sum(g => g.Total);
         var extra = 0;
+        _sliceColors.Clear();
         SpendingPieSeries = currentByGroup.Select(g =>
         {
             var color = _groupColors.TryGetValue(g.Name, out var c) ? c : _t.WidePalette[(_groupColors.Count + extra++) % _t.WidePalette.Length];
+            _sliceColors[g.Name] = color;
             var share = total > 0 ? g.Total / total : 0;
             var slice = new PieSeries<double>
             {
@@ -814,7 +866,6 @@ public sealed partial class ReportsViewModel : ObservableObject
                 Pushout = SelectedGroup == g.Name ? 10 : 0,
                 ToolTipLabelFormatter = _ => $"{g.Total:C0} · {share:0%}",
             };
-            slice.ChartPointPointerDown += (_, point) => { if (point is not null) OnUi(() => SelectedGroup = SelectedGroup == g.Name ? null : g.Name); };
             return (ISeries)slice;
         }).ToArray();
 
@@ -824,10 +875,12 @@ public sealed partial class ReportsViewModel : ObservableObject
             var cur = cmp.Current.Where(c => c.GroupName == group).ToDictionary(c => c.CategoryName, c => c.Amount);
             var pri = cmp.Prior.Where(c => c.GroupName == group).ToDictionary(c => c.CategoryName, c => c.Amount);
             var cats = cur.Keys.Union(pri.Keys).OrderBy(k => cur.GetValueOrDefault(k)).ThenBy(k => pri.GetValueOrDefault(k)).ToList();
+            _groupDetailCategories = cats;
             GroupDetailHeight = ChartTheme.BarChartHeight(cats.Count);
             GroupDetailYAxes = [_t.CategoryAxis(cats.ToArray(), everyLabel: true)];
             GroupDetailXAxes = [_t.CurrencyAxis()];
-            var color = _groupColors.GetValueOrDefault(group, Palette[0]);
+            // The drilled-into group's slice color, so the bars match what was clicked.
+            var color = _sliceColors.TryGetValue(group, out var sc) ? sc : _groupColors.GetValueOrDefault(group, Palette[0]);
             GroupDetailSeries =
             [
                 new RowSeries<double> { Name = cmp.PriorMonth.ToString("MMM yyyy", CultureInfo.CurrentCulture), Values = cats.Select(k => (double)pri.GetValueOrDefault(k)).ToList(),
@@ -838,6 +891,7 @@ public sealed partial class ReportsViewModel : ObservableObject
         }
         else
         {
+            _groupDetailCategories = [];
             GroupDetailSeries = [];
         }
 
@@ -887,8 +941,7 @@ public sealed partial class ReportsViewModel : ObservableObject
         if (budget.IsCurrentMonth)
             series.Add(new() { Name = "Projected month end", Values = shown.Select(l => (double?)l.Projected).ToList(),
                                Fill = new SolidColorPaint(Palette[1].WithAlpha(170)), MaxBarWidth = 14, Rx = 3, Ry = 3, XToolTipLabelFormatter = p => p.Coordinate.PrimaryValue.ToString("C0") });
-        foreach (var s in series)
-            s.ChartPointPointerDown += (_, point) => { if (point is not null) OnUi(() => BudgetHistoryGroup = BudgetRows.FirstOrDefault(r => r.Group == shown[point.Index].GroupName)); };
+        _budgetChartGroups = shown.Select(l => l.GroupName).ToList();
         BudgetSeries = series.Cast<ISeries>().ToArray();
 
         var keep = BudgetHistoryGroup?.Group;
@@ -946,12 +999,22 @@ public sealed partial class ReportsViewModel : ObservableObject
         ];
     }
 
-    /// <summary>Chart pointer events can arrive off the UI thread; view-model changes must not.</summary>
-    private static void OnUi(Action action)
+    /// <summary>
+    /// Runs a reload started by a property change. Those are fire-and-forget, so without this an exception vanished
+    /// and the page silently kept showing the previous data.
+    /// </summary>
+    private async void Run(Func<Task> load, string context = "Reports")
     {
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess()) action();
-        else dispatcher.BeginInvoke(action);
+        try
+        {
+            await load();
+            Status = "";
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+            ErrorLog.Write(ex, context);
+        }
     }
 
     private static DateTime ToDate(DateOnly d) => d.ToDateTime(TimeOnly.MinValue);

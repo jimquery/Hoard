@@ -169,6 +169,19 @@ public sealed class BudgetServiceTests
     }
 
     [Fact]
+    public async Task History_IncludesUncategorizedSpending()
+    {
+        _reports.Spend.Add(new MonthGroupSpend { Month = Oct, GroupId = null, GroupName = "Uncategorized", Amount = 75m });
+
+        var history = await Sut().HistoryAsync(Oct.AddMonths(-1), Oct);
+
+        var unc = Assert.Single(history, h => h.GroupId is null);
+        Assert.Equal(BudgetService.UncategorizedName, unc.GroupName);
+        Assert.Equal(75m, unc.Actual);
+        Assert.Equal(600m, Assert.Single(history, h => h.GroupId == 1).Actual); // September; October has no food spend
+    }
+
+    [Fact]
     public async Task ZeroTarget_RemovesIt()
     {
         await Sut().SetTargetAsync(1, 500m, Oct);

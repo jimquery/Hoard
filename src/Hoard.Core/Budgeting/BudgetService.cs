@@ -217,8 +217,11 @@ public sealed class BudgetService
         var spend = await _reports.MonthlySpendingByGroupAsync(fromMonth, toMonth.AddMonths(1), ct);
         var groups = await ExpenseGroupsAsync(ct);
         var targets = await _budgets.ListTargetsAsync(ct);
-        var names = groups.ToDictionary(g => (long?)g.Id, g => g.Name);
-        foreach (var s in spend) names.TryAdd(s.GroupId, s.GroupId is null ? UncategorizedName : s.GroupName);
+        // A list, not a dictionary: uncategorized spending has a null group id, which a Dictionary key cannot be.
+        var names = groups.Select(g => (Id: (long?)g.Id, g.Name)).ToList();
+        foreach (var s in spend)
+            if (names.All(n => n.Id != s.GroupId))
+                names.Add((s.GroupId, s.GroupId is null ? UncategorizedName : s.GroupName));
         var byKey = spend.GroupBy(s => (s.GroupId, s.Month)).ToDictionary(g => g.Key, g => g.Sum(s => s.Amount));
 
         var points = new List<BudgetHistoryPoint>();
